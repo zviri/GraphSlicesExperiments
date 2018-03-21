@@ -33,3 +33,6 @@ project/plugins/project/
 
 # data
 *.tsv
+*.svg
+*.gephi
+*.DS_Store
