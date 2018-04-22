@@ -30,9 +30,11 @@ project/plugins/project/
 
 # jupyter files
 .ipynb_checkpoints
+*.pyc
 
 # data
 *.tsv
 *.svg
 *.gephi
 *.DS_Store
+*.jsonline
