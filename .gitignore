@@ -36,3 +36,4 @@ project/plugins/project/
 *.svg
 *.gephi
 *.DS_Store
+*.jsonline
