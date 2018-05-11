@@ -4,8 +4,8 @@ exec scala -J-Xmx6g -classpath ".:$GRAPHSLICES_JAR" "$0" "$@"
 
 import java.io.{File, PrintWriter}
 
-import org.zviri.graphslices.{Graph, Edge, Vertex, Algorithms, IOUtil}
-import org.joda.time.LocalDate
+import org.zviri.graphslices.{Algorithms, Edge, Graph, IOUtil, Vertex}
+import org.joda.time.{LocalDate, Months}
 import org.joda.time.format.DateTimeFormat
 import play.api.libs.json.{JsValue, Json, OFormat}
 import scala.io.Source
@@ -59,7 +59,7 @@ val edges = edgesIsir.zipWithIndex.map {
 println("Selecting subgraph Kraj Vysocina")
 val REGION_ID = 3l
 val loadGraph = Graph(vertices, edges).subgraph(
-  edgePredicate = triplet => triplet.srcVertex.data.regionId.getOrElse(-1) == REGION_ID || triplet.dstVertex.data.regionId.getOrElse(-1) == REGION_ID,
+  edgePredicate = triplet => triplet.srcVertex.data.regionId.getOrElse(-1) == REGION_ID || triplet.dstVertex.data.regionId.getOrElse(-1) == REGION_ID
 )
 val filteredGraph = loadGraph.outerJoinVertices(Algorithms.degree(loadGraph).vertices.map(v => (v.id, v.data))) {
   (vertex, degree) => (vertex.data, degree.get)
@@ -72,14 +72,10 @@ println(s"Number of edges: ${loadGraph.edges.size}")
 val computeGraph = filteredGraph.mapVertices(v => Unit).pushDimension[Double](
   e => {
     val edge = e.data
-    (0 to 11).map(
-      edge.startDate.plusMonths
-    ).filter(
-      d => d.isBefore(edge.endDate.getOrElse(LocalDate.now))
-    ).zipWithIndex.map {
-      case (date, idx) =>
-        (date.year.get * 100 + date.monthOfYear.get.toLong, 1.0)
-    }
+    val numMonthsActive = Months.monthsBetween(edge.startDate, edge.endDate.getOrElse(LocalDate.now())).getMonths
+    (0 to numMonthsActive).map(edge.startDate.plusMonths).map(
+      date => (date.year.get * 100 + date.monthOfYear.get.toLong, 1.0)
+    )
   }, keepAllNodes = true
 )
 
@@ -125,4 +121,4 @@ val jsonLines = graphPr.outerJoinVertices[NodeIsir, JsValue](nodesIsir.map(v => 
   }
 }.vertices.map(_.data)
 
-IOUtil.saveJsonLine(s"${dataDir}/evolving_pagerank_large_graph_experiment.jsonline", jsonLines)
+IOUtil.saveJsonLine(s"${dataDir}/evolving_pagerank_large_graph_monthly_experiment.jsonline", jsonLines)
