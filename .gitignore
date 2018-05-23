@@ -28,13 +28,17 @@ project/plugins/project/
 .scala_dependencies
 .worksheet
 
-# jupyter files
-.ipynb_checkpoints
-*.pyc
+# OS specific
+.DS_Store
 
 # data
+data/
 *.tsv
 *.svg
 *.gephi
 *.DS_Store
 *.jsonline
+
+# jupyter files
+.ipynb_checkpoints
+*.pyc
