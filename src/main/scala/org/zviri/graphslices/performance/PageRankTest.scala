@@ -5,7 +5,7 @@ import org.zviri.graphslices._
 
 object PageRankTest extends CustomPerfTest("PageRankTest_") {
 
-  val sizes = Gen.range("Complete Graph Size (nodes)")(10, 20, 10)
+  val sizes = Gen.range("Complete Graph Size (nodes)")(50, 400, 50)
 
   val graphsSerial = for {
     size <- sizes

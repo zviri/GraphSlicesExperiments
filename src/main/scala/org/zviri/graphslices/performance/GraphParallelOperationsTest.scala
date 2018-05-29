@@ -4,7 +4,7 @@ import org.scalameter.api._
 import org.zviri.graphslices.Generators
 
 object GraphParallelOperationsTest extends CustomPerfTest("GraphParallelOperationsTest_") {
-    val sizes = Gen.range("Complete Graph Size (nodes)")(100, 1500, 100)
+    val sizes = Gen.range("Complete Graph Size (nodes)")(100, 2000, 100)
 
     val graphs = for {
       size <- sizes
