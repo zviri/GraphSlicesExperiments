@@ -14,7 +14,7 @@ class CustomPerfTest(prefix: String) extends Bench.ForkedTime {
     exec.independentSamples -> 1,
     exec.jvmflags -> List("-Xms2g", "-Xmx16g"),
     verbose -> true,
-    reports.resultDir -> "./perf"
+    reports.resultDir -> "./data/perf"
   )
 
 }

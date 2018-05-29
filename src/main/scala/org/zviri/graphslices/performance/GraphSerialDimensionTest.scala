@@ -4,7 +4,7 @@ import org.scalameter.api._
 import org.zviri.graphslices._
 
 object GraphSerialDimensionTest extends CustomPerfTest("GraphSerialDimensionTest_") {
-  val sizes = Gen.range("Complete Graph Size (nodes)")(10, 50, 10)
+  val sizes = Gen.range("Complete Graph Size (nodes)")(100, 2000, 100)
 
   val graphs = for {
     size <- sizes
