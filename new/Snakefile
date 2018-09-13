@@ -1,0 +1,97 @@
+# window_size=4
+rule all:
+    input:
+        "data/experiments/ts/4/perc/cross_val_stats.csv",
+        "data/experiments/ts/6/perc/cross_val_stats.csv",
+        "data/experiments/ts/4/lr/cross_val_stats.csv",
+        "data/experiments/ts/6/lr/cross_val_stats.csv",
+        "data/experiments/basic-insdata/4/perc/cross_val_stats.csv",
+        "data/experiments/basic-insdata/6/perc/cross_val_stats.csv",
+        "data/experiments/basic-insdata/4/lr/cross_val_stats.csv",
+        "data/experiments/basic-insdata/6/lr/cross_val_stats.csv",
+
+rule dataset:
+    input:
+        "../data/evolving_pagerank_large_graph_yearly_experiment.jsonline"
+    output:
+        ts="data/datasets/ts_{window_size}.csv",
+        insdata="data/datasets/insdata_{window_size}.csv"
+    shell:
+        "python prepare_dataset.py {input} {wildcards.window_size} {output.ts} {output.insdata}"
+
+rule transform:
+    input:
+        "data/datasets/ts_{window_size}.csv"
+    output:
+        "data/datasets/transformed_ts_{window_size}.csv"
+    shell:
+        "python transform_ts.py {input} {output}"
+
+rule basic_insdata_dataset:
+    input:
+        ts="data/datasets/ts_{window_size}.csv",
+        insdata="data/datasets/insdata_{window_size}.csv"
+    output:
+        "data/datasets/basic-insdata_{window_size}.csv"
+    shell:
+        "python basic_insdata_dataset.py {input.ts} {input.insdata} {output}"
+
+
+GS_TRIALS=50
+GS_EPOCHS=100
+CV_FOLDS=5
+CV_EPOCHS=500
+# GS_TRIALS=5
+# GS_EPOCHS=10
+# CV_FOLDS=5
+# CV_EPOCHS=20
+
+######################################
+#          Linear regression         #
+######################################
+
+rule simple_ts_experiment_lr_gs:
+    input:
+        "data/datasets/{dataset}_{window_size}.csv"
+    output:
+        "data/experiments/{dataset}/{window_size}/lr/best_params.json"
+    shell:
+        """
+        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/lr
+        python experiments/lr_grid_search.py {input} {GS_TRIALS} {output}
+        """
+
+rule simple_ts_experiment_lr_cv:
+    input:
+        dataset="data/datasets/{dataset}_{window_size}.csv",
+        params="data/experiments/{dataset}/{window_size}/lr/best_params.json"
+    output:
+        model="data/experiments/{dataset}/{window_size}/lr/model.pkl",
+        cv_stats="data/experiments/{dataset}/{window_size}/lr/cross_val_stats.csv"
+    shell:
+        "python experiments/lr_cross_val.py {input.dataset} {input.params} {CV_FOLDS} {output.model} {output.cv_stats}"
+
+######################################
+#   Single hidden layer perceptron   #
+######################################
+
+rule simple_ts_experiment_perc_gs:
+    input:
+        "data/datasets/{dataset}_{window_size}.csv"
+    output:
+        "data/experiments/{dataset}/{window_size}/perc/best_params.json"
+    shell:
+        """
+        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/perc
+        python experiments/perc_grid_search.py {input} {GS_TRIALS} {GS_EPOCHS} {output}
+        """
+
+rule simple_ts_experiment_perc_cv:
+    input:
+        dataset="data/datasets/{dataset}_{window_size}.csv",
+        params="data/experiments/{dataset}/{window_size}/perc/best_params.json"
+    output:
+        model="data/experiments/{dataset}/{window_size}/perc/model.h5",
+        cv_stats="data/experiments/{dataset}/{window_size}/perc/cross_val_stats.csv"
+    shell:
+        "python experiments/perc_cross_val.py {input.dataset} {input.params} {CV_EPOCHS} {CV_FOLDS} {output.model} {output.cv_stats}"
