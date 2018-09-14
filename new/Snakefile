@@ -9,6 +9,11 @@ rule all:
         "data/experiments/basic-insdata/6/perc/cross_val_stats.csv",
         "data/experiments/basic-insdata/4/lr/cross_val_stats.csv",
         "data/experiments/basic-insdata/6/lr/cross_val_stats.csv",
+        "data/experiments/basic-insdata/6/lr/cross_val_stats.csv",
+        "data/experiments/clustering/4/kmeansclusters_explore.ipynb",
+        "data/experiments/clustering/4/cross_val_stats.json",
+        "data/experiments/clustering/6/kmeansclusters_explore.ipynb",
+        "data/experiments/clustering/6/cross_val_stats.json"
 
 rule dataset:
     input:
@@ -95,3 +100,42 @@ rule simple_ts_experiment_perc_cv:
         cv_stats="data/experiments/{dataset}/{window_size}/perc/cross_val_stats.csv"
     shell:
         "python experiments/perc_cross_val.py {input.dataset} {input.params} {CV_EPOCHS} {CV_FOLDS} {output.model} {output.cv_stats}"
+
+######################################
+#            Clustering              #
+######################################
+
+rule run_kmeans_clustering:
+    input:
+        "data/datasets/ts_{window_size}.csv"
+    output:
+        "data/datasets/kmeansclusters_{window_size}.csv"
+    shell:
+        "python experiments/clustering.py {input} {output}"
+
+rule clustering_classification_experiment:
+    input:
+        ts="data/datasets/ts_{window_size}.csv",
+        clusters="data/datasets/kmeansclusters_{window_size}.csv"
+    output:
+        model="data/experiments/clustering/{window_size}/model.pkl",
+        cv_stats="data/experiments/clustering/{window_size}/cross_val_stats.json"
+    shell:
+        """
+        python experiments/classification.py {input.ts} {input.clusters} {CV_FOLDS} {output.model} {output.cv_stats}
+        """
+
+rule gen_explore_clustering_and_classification_notebooks:
+    input:
+        ts="data/datasets/ts_{window_size}.csv",
+        insdata="data/datasets/insdata_{window_size}.csv",
+        clusters="data/datasets/kmeansclusters_{window_size}.csv",
+        cv_stats="data/experiments/clustering/{window_size}/cross_val_stats.json",
+        model="data/experiments/clustering/{window_size}/model.pkl"
+    output:
+        "data/experiments/clustering/{window_size}/kmeansclusters_explore.ipynb"
+    shell:
+        """
+        mkdir -p data/experiments/clustering/{wildcards.window_size}
+        papermill experiments/explore_clusters.ipynb {output} -p ts_path {input.ts} -p insdata_path {input.insdata} -p clusters_path {input.clusters} -p cv_stats_path {input.cv_stats} -p model_path {input.model}
+        """
