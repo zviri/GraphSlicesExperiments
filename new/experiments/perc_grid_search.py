@@ -14,7 +14,7 @@ from hyperopt import fmin, tpe, hp, STATUS_OK, STATUS_FAIL, Trials
 
 
 if is_jupyter_env():
-    import sys; sys.argv=['', './data/ts_4.csv', '5', '5', './experiments/simple_ts/best_params.json'];
+    import sys; sys.argv=['', '', '', '', ''];
 
 parser = argparse.ArgumentParser()
 parser.add_argument("dataset", help="Dataset path", type=str)
@@ -50,6 +50,7 @@ def objective(params):
 space = { "num_neurons": hp.uniform("num_neurons_p", 5, 15),
           "learning_rate": hp.loguniform("learning_rate_p", -7, 0.1)}
 best_lr_params = fmin(objective, space=space, algo=tpe.suggest, max_evals=args.gs_num_trials, verbose=1)
+best_lr_params["num_neurons_p"] = round(best_lr_params["num_neurons_p"])
 logging.info("Best number of neurons found: %d", best_lr_params["num_neurons_p"])
 logging.info("Best learning rate found: %f", best_lr_params["learning_rate_p"])
 
@@ -59,7 +60,7 @@ def objective(momentum):
     class OneTimeExperiment(ExperimentData):
         def build_model(self):
             model = build_1layer_perceptron(
-                round(best_lr_params["num_neurons_p"]), best_lr_params["learning_rate_p"], momentum
+                best_lr_params["num_neurons_p"], best_lr_params["learning_rate_p"], momentum
             )
             return model
     try:

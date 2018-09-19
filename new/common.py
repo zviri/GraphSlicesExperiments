@@ -1,7 +1,10 @@
 import logging
 logging.basicConfig(level=logging.DEBUG)
+mpl_logger = logging.getLogger('matplotlib')
+mpl_logger.setLevel(logging.WARNING)
 import warnings
 warnings.filterwarnings(action="ignore", module="sklearn", message="^internal gelsd")
+from IPython.display import Markdown
 
 def is_jupyter_env():
     try:
@@ -9,3 +12,9 @@ def is_jupyter_env():
         return True
     except NameError:
         return False
+
+def load_markup(path):
+    with open(path) as input:
+        lines = input.readlines()
+        markup = "\n".join(map(lambda l: l.strip(), lines))
+        return Markdown(markup)
