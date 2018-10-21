@@ -29,3 +29,18 @@ def build_1layer_perceptron(num_neurons, lr, momentum):
     sgd = SGD(lr, momentum=momentum)
     model.compile(loss="mean_squared_error", optimizer=sgd)
     return model
+
+def build_resample_regression_dataset_func(resampler, stepsize=0.1, jitter=False):
+    def resample_regression_dataset(X, y):
+
+        Xy = np.column_stack((X, y))
+        y_disc = np.digitize(y, np.arange(0, 1, stepsize))
+
+        Xy_resampled, y_resampled = resampler.fit_sample(Xy, y_disc)
+        
+        X = Xy_resampled[:, 0:-1]
+        if jitter:
+            X = X + np.random.normal(0, 0.0001, size=X.shape)
+        y = Xy_resampled[:, -1]
+        return (X, y)
+    return resample_regression_dataset
