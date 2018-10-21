@@ -37,10 +37,15 @@ def build_resample_regression_dataset_func(resampler, stepsize=0.1, jitter=False
         y_disc = np.digitize(y, np.arange(0, 1, stepsize))
 
         Xy_resampled, y_resampled = resampler.fit_sample(Xy, y_disc)
-        
-        X = Xy_resampled[:, 0:-1]
+
+        X_new = Xy_resampled[:, 0:-1]
         if jitter:
-            X = X + np.random.normal(0, 0.0001, size=X.shape)
-        y = Xy_resampled[:, -1]
-        return (X, y)
+            X_new = X_new + np.random.normal(0, 0.0001, size=X_new.shape)
+        y_new = Xy_resampled[:, -1]
+
+        subsample_idx = np.random.randint(X_new.shape[0], size=X.shape[0]) # we want the new dataset to have the same size as the old one
+        X_new = X_new[subsample_idx, :]
+        y_new = y_new[subsample_idx]
+        
+        return (X_new, y_new)
     return resample_regression_dataset
