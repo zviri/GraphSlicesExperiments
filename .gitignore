@@ -39,6 +39,10 @@ data/
 *.DS_Store
 *.jsonline
 
+# python
+__pycache__
+.snakemake
+
 # jupyter files
 .ipynb_checkpoints
 *.pyc
