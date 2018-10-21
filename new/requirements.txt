@@ -1,3 +1,19 @@
-dill
-snakemake
-pip install papermill
+dill==0.2.8.2
+snakemake==5.2.4
+papermill==0.15.0
+imbalanced-learn==0.4.1
+numpy==1.14.5
+scipy==1.1.0
+scikit-learn==0.20.0
+pandas==0.23.4
+seaborn==0.9.0
+matplotlib==2.2.3
+jupyter==1.0.0
+jupyter-client==5.2.3
+jupyter-console==5.2.0
+jupyter-core==4.4.0
+jupyterlab==0.34.10
+jupyterlab-launcher==0.13.1
+ipython==6.5.0
+ipython-genutils==0.2.0
+tensorflow==1.10.1
