@@ -5,6 +5,14 @@ rule all:
         "data/experiments/ts/6/perc/explore_predictions.ipynb",
         "data/experiments/ts/4/lr/explore_predictions.ipynb",
         "data/experiments/ts/6/lr/explore_predictions.ipynb",
+        "data/experiments/transformedts/4/perc/explore_predictions.ipynb",
+        "data/experiments/transformedts/6/perc/explore_predictions.ipynb",
+        "data/experiments/transformedts/4/percrandres/explore_predictions.ipynb",
+        "data/experiments/transformedts/6/percrandres/explore_predictions.ipynb",
+        "data/experiments/transformedts/4/percsmote/explore_predictions.ipynb",
+        "data/experiments/transformedts/6/percsmote/explore_predictions.ipynb",
+        "data/experiments/transformedts/4/lr/explore_predictions.ipynb",
+        "data/experiments/transformedts/6/lr/explore_predictions.ipynb",
         "data/experiments/basic-insdata/4/perc/explore_predictions.ipynb",
         "data/experiments/basic-insdata/6/perc/explore_predictions.ipynb",
         "data/experiments/basic-insdata/4/lr/explore_predictions.ipynb",
@@ -27,7 +35,7 @@ rule transform:
     input:
         "data/datasets/ts_{window_size}.csv"
     output:
-        "data/datasets/transformed_ts_{window_size}.csv"
+        "data/datasets/transformedts_{window_size}.csv"
     shell:
         "python transform_ts.py {input} {output}"
 
@@ -40,11 +48,17 @@ rule basic_insdata_dataset:
     shell:
         "python basic_insdata_dataset.py {input.ts} {input.insdata} {output}"
 
-
+# Full
+# GS_TRIALS=100
+# GS_EPOCHS=500
+# CV_FOLDS=10
+# CV_EPOCHS=1000
+# Reasonable
 GS_TRIALS=50
 GS_EPOCHS=100
 CV_FOLDS=5
 CV_EPOCHS=500
+# Quick
 # GS_TRIALS=5
 # GS_EPOCHS=10
 # CV_FOLDS=5
@@ -125,6 +139,86 @@ rule gen_explore_predictions_perc_notebooks:
         cv_stats="data/experiments/{dataset}/{window_size}/perc/cross_val_stats.csv"
     output:
         "data/experiments/{dataset}/{window_size}/perc/explore_predictions.ipynb"
+    shell:
+        """
+        papermill experiments/explore_predictions_perc.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}
+        """
+
+#################################################################
+#   Single hidden layer perceptron with randomized resampling   #
+#################################################################
+RANDRES_STEPSIZE = 0.1
+rule experiment_percrandres_gs:
+    input:
+        "data/datasets/{dataset}_{window_size}.csv"
+    output:
+        "data/experiments/{dataset}/{window_size}/percrandres/best_params.json"
+    shell:
+        """
+        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/percrandres
+        python experiments/percrandres_grid_search.py {input} {GS_TRIALS} {GS_EPOCHS} {RANDRES_STEPSIZE} {output}
+        """
+
+rule experiment_percrandres_cv:
+    input:
+        dataset="data/datasets/{dataset}_{window_size}.csv",
+        params="data/experiments/{dataset}/{window_size}/percrandres/best_params.json"
+    output:
+        model="data/experiments/{dataset}/{window_size}/percrandres/model.h5",
+        cv_stats="data/experiments/{dataset}/{window_size}/percrandres/cross_val_stats.csv",
+        experiment_desc="data/experiments/{dataset}/{window_size}/percrandres/experiment_description.markup"
+    shell:
+        "python experiments/percrandres_cross_val.py {input.dataset} {input.params} {CV_EPOCHS} {CV_FOLDS} {RANDRES_STEPSIZE} {output.model} {output.cv_stats} {output.experiment_desc}"
+
+rule gen_explore_predictions_percrandres_notebooks:
+    input:
+        experiment_desc="data/experiments/{dataset}/{window_size}/percrandres/experiment_description.markup",
+        dataset="data/datasets/{dataset}_{window_size}.csv",
+        model="data/experiments/{dataset}/{window_size}/percrandres/model.h5",
+        best_params="data/experiments/{dataset}/{window_size}/percrandres/best_params.json",
+        cv_stats="data/experiments/{dataset}/{window_size}/percrandres/cross_val_stats.csv"
+    output:
+        "data/experiments/{dataset}/{window_size}/percrandres/explore_predictions.ipynb"
+    shell:
+        """
+        papermill experiments/explore_predictions_perc.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}
+        """
+
+#################################################################
+#   Single hidden layer perceptron with SMOTE resampling   #
+#################################################################
+SMOTE_STEPSIZE = 0.25
+rule experiment_percsmote_gs:
+    input:
+        "data/datasets/{dataset}_{window_size}.csv"
+    output:
+        "data/experiments/{dataset}/{window_size}/percsmote/best_params.json"
+    shell:
+        """
+        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/percsmote
+        python experiments/percsmote_grid_search.py {input} {GS_TRIALS} {GS_EPOCHS} {SMOTE_STEPSIZE} {output}
+        """
+
+rule experiment_percsmote_cv:
+    input:
+        dataset="data/datasets/{dataset}_{window_size}.csv",
+        params="data/experiments/{dataset}/{window_size}/percsmote/best_params.json"
+    output:
+        model="data/experiments/{dataset}/{window_size}/percsmote/model.h5",
+        cv_stats="data/experiments/{dataset}/{window_size}/percsmote/cross_val_stats.csv",
+        experiment_desc="data/experiments/{dataset}/{window_size}/percsmote/experiment_description.markup"
+    shell:
+        "python experiments/percsmote_cross_val.py {input.dataset} {input.params} {CV_EPOCHS} {CV_FOLDS} {SMOTE_STEPSIZE} {output.model} {output.cv_stats} {output.experiment_desc}"
+
+rule gen_explore_predictions_percsmote_notebooks:
+    input:
+        experiment_desc="data/experiments/{dataset}/{window_size}/percsmote/experiment_description.markup",
+        dataset="data/datasets/{dataset}_{window_size}.csv",
+        model="data/experiments/{dataset}/{window_size}/percsmote/model.h5",
+        best_params="data/experiments/{dataset}/{window_size}/percsmote/best_params.json",
+        cv_stats="data/experiments/{dataset}/{window_size}/percsmote/cross_val_stats.csv"
+    output:
+        "data/experiments/{dataset}/{window_size}/percsmote/explore_predictions.ipynb"
     shell:
         """
         papermill experiments/explore_predictions_perc.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}

@@ -17,3 +17,4 @@ jupyterlab-launcher==0.13.1
 ipython==6.5.0
 ipython-genutils==0.2.0
 tensorflow==1.10.1
+ipympl==0.2.1

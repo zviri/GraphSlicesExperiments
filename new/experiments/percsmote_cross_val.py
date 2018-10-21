@@ -2,14 +2,14 @@ import sys
 sys.path.insert(0,'.')
 from common import *
 from experiments_base import ALL_EVALUATORS
-from experiments import TFExperiment, build_1layer_perceptron
+from experiments import TFExperiment, build_1layer_perceptron, build_resample_regression_dataset_func
 
 import pandas as pd
 import argparse
 import sys
 import json
 import numpy as np
-
+from imblearn.over_sampling import SMOTE
 
 if is_jupyter_env():
     import sys; sys.argv=['', '', '', '', '', '', '', ''];
@@ -19,6 +19,7 @@ parser.add_argument("dataset", help="Dataset path", type=str)
 parser.add_argument("parameters_path", help="Path to parameters from grid search", type=str)
 parser.add_argument("training_epochs", help="Number of epochs used for training in on trial", type=int)
 parser.add_argument("num_folds", help="Number of cross validation folds", type=int)
+parser.add_argument("stepsize", help="Stepsize for discretization", type=float);
 parser.add_argument("model_path", help="Output path for the final model", type=str)
 parser.add_argument("cross_val_stats", help="Output path for the cross validation stats", type=str)
 parser.add_argument("experiment_description_path", help="Output path for writing experiment description markup", type=str)
@@ -32,18 +33,21 @@ params = json.load(open(args.parameters_path))
 params["num_neurons_p"]=round(params["num_neurons_p"])
 experiment_description = """
     Predicting page rank using perceptron with single hidden layer.
+    Using randomized resampling with jitter to balance the dataset.
 
     **Evaluation method:** {}-fold cross validation
     **Optimization method:** SGD
     Parameters:
     * num_neurons_p = {} — number of neurons in the hidden layer
     * learning_rate_p = {} — learning rate
-    * momentum = {} — momentum""".format(
+    * momentum = {} — momentum
+    * discretization_stepsize = {} — discretization step size""".format(
     args.num_folds, params["num_neurons_p"],
-    params["learning_rate_p"], params["momentum_p"])
+    params["learning_rate_p"], params["momentum_p"], args.stepsize)
 
 logging.info(experiment_description)
-
+smote = SMOTE(random_state=0, k_neighbors=3)
+smote_resample = build_resample_regression_dataset_func(smote, args.stepsize)
 class Experiment(TFExperiment):
     def load_dataset(self):
         X = dataset_df.drop("year_0", axis=1).values
@@ -55,6 +59,9 @@ class Experiment(TFExperiment):
             params["num_neurons_p"], params["learning_rate_p"], params["momentum_p"]
         )
         return model
+
+    def preprocess(self, X, y):
+        return smote_resample(X, y)
 
 experiment = Experiment(ALL_EVALUATORS, args.training_epochs)
 stats_df = experiment.run_cross_validation(args.num_folds)
