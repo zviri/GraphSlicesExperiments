@@ -33,6 +33,7 @@ project/plugins/project/
 
 # data
 data/
+perf/
 *.tsv
 *.svg
 *.gephi
