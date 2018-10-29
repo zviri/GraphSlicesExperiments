@@ -20,6 +20,8 @@ parser.add_argument("parameters_path", help="Path to parameters from grid search
 parser.add_argument("training_epochs", help="Number of epochs used for training in on trial", type=int)
 parser.add_argument("num_folds", help="Number of cross validation folds", type=int)
 parser.add_argument("stepsize", help="Stepsize for discretization", type=float);
+parser.add_argument("k_neighbors", help="Number of neighbors for SMOTE", type=int);
+parser.add_argument('-j', '--jitter', help="Jitter on/off", action='store_true');
 parser.add_argument("model_path", help="Output path for the final model", type=str)
 parser.add_argument("cross_val_stats", help="Output path for the cross validation stats", type=str)
 parser.add_argument("experiment_description_path", help="Output path for writing experiment description markup", type=str)
@@ -41,13 +43,15 @@ experiment_description = """
     * num_neurons_p = {} — number of neurons in the hidden layer
     * learning_rate_p = {} — learning rate
     * momentum = {} — momentum
-    * discretization_stepsize = {} — discretization step size""".format(
+    * discretization_stepsize = {} — discretization step size
+    * k_neighbors = {} — number of neighbors for SMOTE
+    * jitter = {} — jitter on/off""".format(
     args.num_folds, params["num_neurons_p"],
-    params["learning_rate_p"], params["momentum_p"], args.stepsize)
+    params["learning_rate_p"], params["momentum_p"], args.stepsize, args.k_neighbors, args.jitter)
 
 logging.info(experiment_description)
-smote = SMOTE(random_state=0, k_neighbors=3)
-smote_resample = build_resample_regression_dataset_func(smote, args.stepsize)
+smote = SMOTE(random_state=0, k_neighbors=args.k_neighbors)
+smote_resample = build_resample_regression_dataset_func(smote, args.stepsize, jitter=args.jitter)
 class Experiment(TFExperiment):
     def load_dataset(self):
         X = dataset_df.drop("year_0", axis=1).values

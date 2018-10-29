@@ -23,14 +23,16 @@ parser.add_argument("dataset", help="Dataset path", type=str);
 parser.add_argument("gs_num_trials", help="Num trials for grid search", type=int);
 parser.add_argument("gs_training_epochs", help="Number of epochs used for training in on trial", type=int);
 parser.add_argument("stepsize", help="Stepsize for discretization", type=float);
+parser.add_argument("k_neighbors", help="Number of neighbors for SMOTE", type=int);
+parser.add_argument('-j', '--jitter', help="Jitter on/off", action='store_true');
 parser.add_argument("parameters_path", help="Parameters output", type=str);
 
 args = parser.parse_args()
 
 logging.info("Loading dataset...")
 dataset_df = pd.read_csv(args.dataset)
-smote = SMOTE(random_state=0, k_neighbors=3)
-smote_resample = build_resample_regression_dataset_func(smote, stepsize=args.stepsize)
+smote = SMOTE(random_state=0, k_neighbors=args.k_neighbors)
+smote_resample = build_resample_regression_dataset_func(smote, stepsize=args.stepsize, jitter=args.jitter)
 class ExperimentData(TFExperiment):
     def load_dataset(self):
         X = dataset_df.drop("year_0", axis=1).values
