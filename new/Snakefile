@@ -13,6 +13,8 @@ rule all:
         "data/experiments/transformedts/6/percsmote/explore_predictions.ipynb",
         "data/experiments/transformedts/4/percsmotejitter/explore_predictions.ipynb",
         "data/experiments/transformedts/6/percsmotejitter/explore_predictions.ipynb",
+        "data/experiments/transformedts/4/percadasyn/explore_predictions.ipynb",
+        "data/experiments/transformedts/6/percadasyn/explore_predictions.ipynb",
         "data/experiments/transformedts/4/lr/explore_predictions.ipynb",
         "data/experiments/transformedts/6/lr/explore_predictions.ipynb",
         "data/experiments/basic-insdata/4/perc/explore_predictions.ipynb",
@@ -263,6 +265,47 @@ rule gen_explore_predictions_percsmotejitter_notebooks:
         cv_stats="data/experiments/{dataset}/{window_size}/percsmotejitter/cross_val_stats.csv"
     output:
         "data/experiments/{dataset}/{window_size}/percsmotejitter/explore_predictions.ipynb"
+    shell:
+        """
+        papermill experiments/explore_predictions_perc.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}
+        """
+
+#################################################################
+#   Single hidden layer perceptron with ADASYN resampling       #
+#################################################################
+ADASYN_STEPSIZE = 0.25
+ADASYN_K_NEIGHBORS = 3
+rule experiment_percadasyn_gs:
+    input:
+        "data/datasets/{dataset}_{window_size}.csv"
+    output:
+        "data/experiments/{dataset}/{window_size}/percadasyn/best_params.json"
+    shell:
+        """
+        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/percadasyn
+        python experiments/percadasyn_grid_search.py {input} {GS_TRIALS} {GS_EPOCHS} {ADASYN_STEPSIZE} {ADASYN_K_NEIGHBORS} {output}
+        """
+
+rule experiment_percadasyn_cv:
+    input:
+        dataset="data/datasets/{dataset}_{window_size}.csv",
+        params="data/experiments/{dataset}/{window_size}/percadasyn/best_params.json"
+    output:
+        model="data/experiments/{dataset}/{window_size}/percadasyn/model.h5",
+        cv_stats="data/experiments/{dataset}/{window_size}/percadasyn/cross_val_stats.csv",
+        experiment_desc="data/experiments/{dataset}/{window_size}/percadasyn/experiment_description.markup"
+    shell:
+        "python experiments/percadasyn_cross_val.py {input.dataset} {input.params} {CV_EPOCHS} {CV_FOLDS} {ADASYN_STEPSIZE} {ADASYN_K_NEIGHBORS} {output.model} {output.cv_stats} {output.experiment_desc}"
+
+rule gen_explore_predictions_percadasyn_notebooks:
+    input:
+        experiment_desc="data/experiments/{dataset}/{window_size}/percadasyn/experiment_description.markup",
+        dataset="data/datasets/{dataset}_{window_size}.csv",
+        model="data/experiments/{dataset}/{window_size}/percadasyn/model.h5",
+        best_params="data/experiments/{dataset}/{window_size}/percadasyn/best_params.json",
+        cv_stats="data/experiments/{dataset}/{window_size}/percadasyn/cross_val_stats.csv"
+    output:
+        "data/experiments/{dataset}/{window_size}/percadasyn/explore_predictions.ipynb"
     shell:
         """
         papermill experiments/explore_predictions_perc.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}

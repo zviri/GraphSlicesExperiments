@@ -9,7 +9,7 @@ import argparse
 import sys
 import json
 import numpy as np
-from imblearn.over_sampling import SMOTE
+from imblearn.over_sampling import ADASYN
 
 if is_jupyter_env():
     import sys; sys.argv=['', '', '', '', '', '', '', ''];
@@ -20,7 +20,7 @@ parser.add_argument("parameters_path", help="Path to parameters from grid search
 parser.add_argument("training_epochs", help="Number of epochs used for training in on trial", type=int)
 parser.add_argument("num_folds", help="Number of cross validation folds", type=int)
 parser.add_argument("stepsize", help="Stepsize for discretization", type=float);
-parser.add_argument("k_neighbors", help="Number of neighbors for SMOTE", type=int);
+parser.add_argument("k_neighbors", help="Number of neighbors for ADASYN", type=int);
 parser.add_argument('-j', '--jitter', help="Jitter on/off", action='store_true');
 parser.add_argument("model_path", help="Output path for the final model", type=str)
 parser.add_argument("cross_val_stats", help="Output path for the cross validation stats", type=str)
@@ -35,7 +35,7 @@ params = json.load(open(args.parameters_path))
 params["num_neurons_p"]=round(params["num_neurons_p"])
 experiment_description = """
     Predicting page rank using perceptron with single hidden layer.
-    Using SMOTE to balance the dataset.
+    Using ADASYN resampling to balance the dataset.
 
     **Evaluation method:** {}-fold cross validation
     **Optimization method:** SGD
@@ -44,14 +44,14 @@ experiment_description = """
     * learning_rate_p = {} — learning rate
     * momentum = {} — momentum
     * discretization_stepsize = {} — discretization step size
-    * k_neighbors = {} — number of neighbors for SMOTE
+    * k_neighbors = {} — number of neighbors for ADASYN
     * jitter = {} — jitter on/off""".format(
     args.num_folds, params["num_neurons_p"],
     params["learning_rate_p"], params["momentum_p"], args.stepsize, args.k_neighbors, args.jitter)
 
 logging.info(experiment_description)
-smote = SMOTE(random_state=0, k_neighbors=args.k_neighbors)
-smote_resample = build_resample_regression_dataset_func(smote, args.stepsize, jitter=args.jitter)
+adasyn = ADASYN(random_state=0, n_neighbors=args.k_neighbors)
+adasyn_resample = build_resample_regression_dataset_func(adasyn, args.stepsize, jitter=args.jitter)
 class Experiment(TFExperiment):
     def load_dataset(self):
         X = dataset_df.drop("year_0", axis=1).values
@@ -65,7 +65,7 @@ class Experiment(TFExperiment):
         return model
 
     def preprocess(self, X, y):
-        return smote_resample(X, y)
+        return adasyn_resample(X, y)
 
 experiment = Experiment(ALL_EVALUATORS, args.training_epochs)
 stats_df = experiment.run_cross_validation(args.num_folds)
