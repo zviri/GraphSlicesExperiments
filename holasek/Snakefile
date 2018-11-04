@@ -1,0 +1,22 @@
+# window_size=4
+
+START_DATE="2014-07-01"
+END_DATE="2018-07-31"
+
+rule all:
+    input:
+        "data/receivables/receivables_0.csv"
+
+rule dataset:
+    output:
+        receivables="data/receivables/receivables_0.csv",
+    shell:
+        "python prepare_dataset.py {START_DATE} {END_DATE} data/receivables"
+
+# rule clean:
+#     input:
+#         receivables="data/receivables.csv",
+#     output:
+#         receivables_clean="data/receivables_clean/",
+#     shell:
+#         "python clean_dataset.py {input.receivables} {output.receivables_clean}"
