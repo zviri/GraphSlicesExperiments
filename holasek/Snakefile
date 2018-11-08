@@ -2,21 +2,40 @@
 
 START_DATE="2014-07-01"
 END_DATE="2018-07-31"
+N_CREDITORS = 200
 
 rule all:
     input:
-        "data/receivables/receivables_0.csv"
+        "data/receivables/receivables_0.parquet",
+        "data/receivables_clean/part.0.parquet",
+        "data/extracted_data.csv",
+        "data/creditors.csv"
 
 rule dataset:
     output:
-        receivables="data/receivables/receivables_0.csv",
+        receivables="data/receivables/receivables_0.parquet",
     shell:
         "python prepare_dataset.py {START_DATE} {END_DATE} data/receivables"
 
-# rule clean:
-#     input:
-#         receivables="data/receivables.csv",
-#     output:
-#         receivables_clean="data/receivables_clean/",
-#     shell:
-#         "python clean_dataset.py {input.receivables} {output.receivables_clean}"
+rule most_frequent_creditors:
+    output:
+        "data/creditors.csv"
+    shell:
+        "python most_frequent_creditors.py {START_DATE} {END_DATE} {N_CREDITORS} data/creditors.csv"
+
+rule clean:
+    input:
+        receivables="data/receivables/receivables_0.parquet",
+    output:
+        receivables_clean="data/receivables_clean/part.0.parquet",
+    shell:
+        "python clean_dataset.py data/receivables/ data/receivables_clean/"
+
+
+rule extract_deputies:
+    input:
+        receivables="data/receivables_clean/part.0.parquet",
+    output:
+        extracted_data="data/extracted_data.csv",
+    shell:
+        "python extract_deputies.py data/receivables_clean/ {output.extracted_data}"
