@@ -10,7 +10,8 @@ rule all:
         "data/receivables_clean/part.0.parquet",
         "data/receivables.csv",
         "data/receivables_filtered.csv",
-        "data/creditors.csv"
+        "data/creditors.csv",
+        "data/summary.ipynb"
 
 rule dataset:
     output:
@@ -49,3 +50,13 @@ rule filter_receivables:
         receivables_filtered="data/receivables_filtered.csv",
     shell:
         "python filter_receivables.py {input.receivables} {input.creditors} {output.receivables_filtered}"
+
+rule gen_summary_notebook:
+    input:
+        receivables_filtered="data/receivables_filtered.csv"
+    output:
+        "data/summary.ipynb"
+    shell:
+        """
+        papermill summarize_results.ipynb {output} -p receivables_path {input.receivables_filtered}
+        """
