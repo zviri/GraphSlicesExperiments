@@ -60,6 +60,6 @@ receivables_df = dd\
 .map_partitions(process_df)\
 .compute(num_workers=N_CORES, scheduler='processes')
 
-receivables_df[["insolvency_id", "publish_date", "creditor", "creditor_string_id",
+receivables_df = receivables_df[["insolvency_id", "publish_date", "creditor", "creditor_string_id",
                 "is_deputy", "is_not_deputy", "deputy_type", "deputy_name", "url"]]
 receivables_df.to_csv(args.output_path, index=False, encoding="utf-8")
