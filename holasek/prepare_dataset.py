@@ -1,7 +1,7 @@
 import pandas as pd
-from db import sql2df
+from holasek.db import sql2df
 import argparse
-from common import *
+from holasek.common import *
 import dateutil.parser
 from datetime import timedelta, date
 
@@ -28,9 +28,9 @@ while start_date_iter <= end_date:
                       "AND publish_date >= %(START_DATE)s AND publish_date <= %(END_DATE)s ",
                       {"START_DATE": start_date_iter, "END_DATE": end_date_iter})
 
-    output_path = args.output_folder_path + "/receivables_{}.csv".format(iter)
+    output_path = args.output_folder_path + "/receivables_{}.parquet".format(iter)
     logging.info("\tSaving data to %s", output_path)
-    files_df.to_csv(output_path, index=False, encoding="utf-8")
+    files_df.to_parquet(output_path, index=False, compression='gzip')
     start_date_iter = end_date_iter + timedelta(days=1)
     end_date_iter += delta
     iter += 1
