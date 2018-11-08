@@ -1,0 +1,62 @@
+# window_size=4
+
+START_DATE="2014-07-01"
+END_DATE="2018-07-31"
+N_CREDITORS = 200
+
+rule all:
+    input:
+        "data/receivables/receivables_0.parquet",
+        "data/receivables_clean/part.0.parquet",
+        "data/receivables.csv",
+        "data/receivables_filtered.csv",
+        "data/creditors.csv",
+        "data/summary.ipynb"
+
+rule dataset:
+    output:
+        receivables="data/receivables/receivables_0.parquet",
+    shell:
+        "python prepare_dataset.py {START_DATE} {END_DATE} data/receivables"
+
+rule most_frequent_creditors:
+    output:
+        "data/creditors.csv"
+    shell:
+        "python most_frequent_creditors.py {START_DATE} {END_DATE} {N_CREDITORS} data/creditors.csv"
+
+rule clean:
+    input:
+        receivables="data/receivables/receivables_0.parquet",
+    output:
+        receivables_clean="data/receivables_clean/part.0.parquet",
+    shell:
+        "python clean_dataset.py data/receivables/ data/receivables_clean/"
+
+
+rule extract_deputies:
+    input:
+        receivables="data/receivables_clean/part.0.parquet",
+    output:
+        extracted_data="data/receivables.csv",
+    shell:
+        "python extract_deputies.py data/receivables_clean/ {output.extracted_data}"
+
+rule filter_receivables:
+    input:
+        receivables="data/receivables.csv",
+        creditors="data/creditors.csv"
+    output:
+        receivables_filtered="data/receivables_filtered.csv",
+    shell:
+        "python filter_receivables.py {input.receivables} {input.creditors} {output.receivables_filtered}"
+
+rule gen_summary_notebook:
+    input:
+        receivables_filtered="data/receivables_filtered.csv"
+    output:
+        "data/summary.ipynb"
+    shell:
+        """
+        papermill summarize_results.ipynb {output} -p receivables_path {input.receivables_filtered}
+        """
