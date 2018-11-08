@@ -1,7 +1,7 @@
 import pandas as pd
-from holasek.db import sql2df
+from db import sql2df
 import argparse
-from holasek.common import *
+from common import *
 import dateutil.parser
 from datetime import timedelta, date
 

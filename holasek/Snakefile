@@ -8,7 +8,8 @@ rule all:
     input:
         "data/receivables/receivables_0.parquet",
         "data/receivables_clean/part.0.parquet",
-        "data/extracted_data.csv",
+        "data/receivables.csv",
+        "data/receivables_filtered.csv",
         "data/creditors.csv"
 
 rule dataset:
@@ -36,6 +37,6 @@ rule extract_deputies:
     input:
         receivables="data/receivables_clean/part.0.parquet",
     output:
-        extracted_data="data/extracted_data.csv",
+        extracted_data="data/receivables.csv",
     shell:
         "python extract_deputies.py data/receivables_clean/ {output.extracted_data}"
