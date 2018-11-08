@@ -18,7 +18,7 @@ args = parser.parse_args()
 start_date = dateutil.parser.parse(args.start_date).date()
 end_date = dateutil.parser.parse(args.end_date).date()
 
-logging.info("Extracting N=%dmost frequent creditors between %s and %s from db...", args.N, args.start_date, args.end_date)
+logging.info("Extracting N=%d most frequent creditors between %s and %s from db...", args.N, args.start_date, args.end_date)
 
 creditors_df = sql2df("SELECT creditor_string_id, count(*) as count FROM file_tab "\
                   "WHERE file_type_id =530 AND publish_date >= %(START_DATE)s AND publish_date <= %(END_DATE)s "\

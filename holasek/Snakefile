@@ -40,3 +40,12 @@ rule extract_deputies:
         extracted_data="data/receivables.csv",
     shell:
         "python extract_deputies.py data/receivables_clean/ {output.extracted_data}"
+
+rule filter_receivables:
+    input:
+        receivables="data/receivables.csv",
+        creditors="data/creditors.csv"
+    output:
+        receivables_filtered="data/receivables_filtered.csv",
+    shell:
+        "python filter_receivables.py {input.receivables} {input.creditors} {output.receivables_filtered}"
