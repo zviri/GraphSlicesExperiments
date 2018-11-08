@@ -25,5 +25,4 @@ creditors_df = sql2df("SELECT creditor_string_id, count(*) as count FROM file_ta
                   "GROUP BY creditor_string_id ORDER BY count DESC LIMIT %(N)s",
                   {"START_DATE": start_date, "END_DATE": end_date, "N": args.N})
 
-
 creditors_df.to_csv(args.output, encoding="utf-8", index=False)
