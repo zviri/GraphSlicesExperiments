@@ -43,11 +43,12 @@ experiment_description = """
     * num_neurons_p = {} — number of neurons in the hidden layer
     * learning_rate_p = {} — learning rate
     * momentum = {} — momentum
+    * l2_reg = {} — L2 regularization
     * discretization_stepsize = {} — discretization step size
     * k_neighbors = {} — number of neighbors for ADASYN
     * jitter = {} — jitter on/off""".format(
     args.num_folds, params["num_neurons_p"],
-    params["learning_rate_p"], params["momentum_p"], args.stepsize, args.k_neighbors, args.jitter)
+    params["learning_rate_p"], params["momentum_p"], params["l2_reg_p"], args.stepsize, args.k_neighbors, args.jitter)
 
 logging.info(experiment_description)
 adasyn = ADASYN(random_state=0, n_neighbors=args.k_neighbors)
@@ -60,7 +61,7 @@ class Experiment(TFExperiment):
 
     def build_model(self):
         model = build_1layer_perceptron(
-            params["num_neurons_p"], params["learning_rate_p"], params["momentum_p"]
+            params["num_neurons_p"], params["learning_rate_p"], params["momentum_p"], params["l2_reg_p"]
         )
         return model
 

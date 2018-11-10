@@ -38,9 +38,10 @@ experiment_description = """
     Parameters:
     * num_neurons_p = {} — number of neurons in the hidden layer
     * learning_rate_p = {} — learning rate
-    * momentum = {} — momentum""".format(
+    * momentum = {} — momentum
+    * l2_reg = {} — L2 regularization""".format(
     args.num_folds, params["num_neurons_p"],
-    params["learning_rate_p"], params["momentum_p"])
+    params["learning_rate_p"], params["momentum_p"], params["l2_reg_p"])
 
 logging.info(experiment_description)
 
@@ -52,7 +53,7 @@ class Experiment(TFExperiment):
 
     def build_model(self):
         model = build_1layer_perceptron(
-            params["num_neurons_p"], params["learning_rate_p"], params["momentum_p"]
+            params["num_neurons_p"], params["learning_rate_p"], params["momentum_p"], params["l2_reg_p"]
         )
         return model
 

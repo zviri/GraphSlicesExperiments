@@ -6,6 +6,8 @@ from keras.models import Sequential
 from keras.layers import Activation, Dense
 from keras.optimizers import SGD
 from keras.initializers import RandomNormal
+import keras
+
 
 class TFExperiment(Experiment):
     def __init__(self, evaluators, num_epochs):
@@ -18,11 +20,14 @@ class TFExperiment(Experiment):
     def fit_model(self, model, X, y):
         model.fit(X, y, epochs=self.num_epochs, batch_size=128, verbose=0)
 
-def build_1layer_perceptron(num_neurons, lr, momentum):
+def build_1layer_perceptron(num_neurons, lr, momentum, l2_regularization=0.0):
+    if l2_regularization:
+        logging.info("Using L2 regularization: %f", l2_regularization)
     model = Sequential()
     model.add(
         Dense(num_neurons, activation="sigmoid",
-              kernel_initializer=RandomNormal(mean=0.0, stddev=0.05, seed=None)
+              kernel_initializer=RandomNormal(mean=0.0, stddev=0.05, seed=None),
+              kernel_regularizer=keras.regularizers.l2(l2_regularization)
     ))
     model.add(Dense(1))
     model.add(Activation("sigmoid"))

@@ -24,8 +24,9 @@ parser.add_argument("gs_num_trials", help="Num trials for grid search", type=int
 parser.add_argument("gs_training_epochs", help="Number of epochs used for training in on trial", type=int);
 parser.add_argument("stepsize", help="Stepsize for discretization", type=float);
 parser.add_argument("k_neighbors", help="Number of neighbors for SMOTE", type=int);
-parser.add_argument('-j', '--jitter', help="Jitter on/off", action='store_true');
 parser.add_argument("parameters_path", help="Parameters output", type=str);
+parser.add_argument('-j', '--jitter', help="Jitter on/off", action='store_true');
+parser.add_argument("--with_l2_regularization", action='store_true', help="Enable L2 regularization")
 
 args = parser.parse_args()
 
@@ -42,12 +43,14 @@ class ExperimentData(TFExperiment):
     def preprocess(self, X, y):
         return smote_resample(X, y)
 
-logging.info("Running grid search for learning rate and # of neurons (num trials = %d, num_epochs = %d)...", args.gs_num_trials, args.gs_training_epochs)
+logging.info("Running grid search for learning rate and # of neurons %s(num trials = %d, num_epochs = %d)...",
+             "and l2 regularization " if args.with_l2_regularization else "", args.gs_num_trials, args.gs_training_epochs)
 def objective(params):
     class OneTimeExperiment(ExperimentData):
         def build_model(self):
+            l2_reg = params["l2_reg"] if args.with_l2_regularization else 0.0
             model = build_1layer_perceptron(
-                round(params["num_neurons"]), params["learning_rate"], 0.0
+                round(params["num_neurons"]), params["learning_rate"], 0.0, l2_reg
             )
             return model
     try:
@@ -59,18 +62,23 @@ def objective(params):
 
 space = { "num_neurons": hp.uniform("num_neurons_p", 5, 15),
           "learning_rate": hp.loguniform("learning_rate_p", -7, 0.1)}
+if args.with_l2_regularization:
+    space["l2_reg"] = hp.loguniform("l2_reg_p", -10, -1)
 best_lr_params = fmin(objective, space=space, algo=tpe.suggest, max_evals=args.gs_num_trials, verbose=1)
 best_lr_params["num_neurons_p"] = round(best_lr_params["num_neurons_p"])
 logging.info("Best number of neurons found: %d", best_lr_params["num_neurons_p"])
 logging.info("Best learning rate found: %f", best_lr_params["learning_rate_p"])
-
+if args.with_l2_regularization:
+    logging.info("Best l2 regularization parameter found: %f", best_lr_params["l2_reg_p"])
+else:
+    best_lr_params["l2_reg_p"] = 0.0
 
 logging.info("Running grid search for momentum (num trials = %d, num_epochs = %d)...", args.gs_num_trials, args.gs_training_epochs)
 def objective(momentum):
     class OneTimeExperiment(ExperimentData):
         def build_model(self):
             model = build_1layer_perceptron(
-                best_lr_params["num_neurons_p"], best_lr_params["learning_rate_p"], momentum
+                best_lr_params["num_neurons_p"], best_lr_params["learning_rate_p"], momentum, best_lr_params["l2_reg_p"]
             )
             return model
     try:
