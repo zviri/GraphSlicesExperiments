@@ -1,0 +1,6 @@
+{
+  "GS_TRIALS": 100,
+  "GS_EPOCHS": 100,
+  "CV_FOLDS": 5,
+  "CV_EPOCHS": 500
+}

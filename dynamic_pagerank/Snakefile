@@ -1,4 +1,11 @@
-# window_size=4
+rule overall_stats:
+    input:
+        "data/experiments_finished.checkpoint"
+    output:
+        "data/experiments/overall_comparison.ipynb"
+    shell:
+        "papermill experiments/overall_comparison.ipynb {output} -p data_path data/ -p exec_dir $PWD"
+
 rule all:
     input:
         "data/experiments/ts/4/perc/explore_predictions.ipynb",
@@ -41,6 +48,10 @@ rule all:
         "data/experiments/clustering/4/cross_val_stats.json",
         "data/experiments/clustering/6/kmeansclusters_explore.ipynb",
         "data/experiments/clustering/6/cross_val_stats.json"
+    output:
+        "data/experiments_finished.checkpoint"
+    shell:
+        "echo "" > {output}"
 
 rule dataset:
     input:
@@ -68,21 +79,12 @@ rule basic_insdata_dataset:
     shell:
         "python basic_insdata_dataset.py {input.ts} {input.insdata} {output}"
 
-# Full
-# GS_TRIALS=100
-# GS_EPOCHS=500
-# CV_FOLDS=10
-# CV_EPOCHS=1000
-# Reasonable
-GS_TRIALS=100
-GS_EPOCHS=100
-CV_FOLDS=5
-CV_EPOCHS=500
-# Quick
-# GS_TRIALS=5
-# GS_EPOCHS=10
-# CV_FOLDS=5
-# CV_EPOCHS=20
+
+GS_TRIALS=config["GS_TRIALS"]
+GS_EPOCHS=config["GS_EPOCHS"]
+CV_FOLDS=config["CV_FOLDS"]
+CV_EPOCHS=config["CV_EPOCHS"]
+
 
 ######################################
 #          Linear regression         #
