@@ -47,3 +47,6 @@ __pycache__
 # jupyter files
 .ipynb_checkpoints
 *.pyc
+
+# VS Code
+.vscode

@@ -1,0 +1,25 @@
+rule all:
+    input:
+        "data/experiments/ts/4/perc/explore_predictions.ipynb",
+
+rule debtor_creditor_network:
+    output:
+        nodes_tsv="data/datasets/debcred_nodes.tsv",
+        edges_tsv="data/datasets/debcred_edges.tsv",
+    shell:
+        """
+        python export_network.py --nodes_tsv {output.nodes_tsv} \
+                                 --edges_tsv {output.edges_tsv} \
+                                 --network_type "debtor->creditor" 
+        """
+
+rule debtor_creditor_network_stats:
+    input:
+        nodes_tsv="data/datasets/debcred_nodes.tsv",
+        edges_tsv="data/datasets/debcred_edges.tsv"
+    output:
+        "data/debcred_stats.ipynb"
+    shell:
+        """
+        papermill debcred_network_stats.ipynb {output} -p nodes_tsv {input.nodes_tsv} -p edges_tsv {input.edges_tsv}
+        """
