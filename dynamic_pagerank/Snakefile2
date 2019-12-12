@@ -23,3 +23,27 @@ rule debtor_creditor_network_stats:
         """
         papermill debcred_network_stats.ipynb {output} -p nodes_tsv {input.nodes_tsv} -p edges_tsv {input.edges_tsv}
         """
+
+rule calc_page_rank:
+    input:
+        nodes_tsv="data/datasets/debcred_nodes.tsv",
+        edges_tsv="data/datasets/debcred_edges.tsv"
+    output:
+        "data/datasets/debcred_pr_yearly.jsonline"
+    shell:
+        """
+        java -Xmx10000m -cp $GRAPHSLICES_EXPERIMENTS_JAR org.zviri.graphslicesexperiments.IsirPageRank \
+             {input.nodes_tsv} {input.edges_tsv} {output}
+        """
+
+rule calc_hits:
+    input:
+        nodes_tsv="data/datasets/debcred_nodes.tsv",
+        edges_tsv="data/datasets/debcred_edges.tsv"
+    output:
+        "data/datasets/debcred_pr_yearly.jsonline"
+    shell:
+        """
+        java -Xmx10000m -cp $GRAPHSLICES_EXPERIMENTS_JAR org.zviri.graphslicesexperiments.IsirPageRank \
+             {input.nodes_tsv} {input.edges_tsv} {output}
+        """
