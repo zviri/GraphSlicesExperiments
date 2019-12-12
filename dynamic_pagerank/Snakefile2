@@ -1,6 +1,8 @@
 rule all:
     input:
-        "data/experiments/ts/4/perc/explore_predictions.ipynb",
+        "data/datasets/ts_4_pr.csv",
+        "data/datasets/ts_6_pr.csv",
+        "data/datasets/debcred_hits_yearly.jsonline"
 
 rule debtor_creditor_network:
     output:
@@ -41,9 +43,18 @@ rule calc_hits:
         nodes_tsv="data/datasets/debcred_nodes.tsv",
         edges_tsv="data/datasets/debcred_edges.tsv"
     output:
-        "data/datasets/debcred_pr_yearly.jsonline"
+        "data/datasets/debcred_hits_yearly.jsonline"
     shell:
         """
         java -Xmx10000m -cp $GRAPHSLICES_EXPERIMENTS_JAR org.zviri.graphslicesexperiments.IsirPageRank \
              {input.nodes_tsv} {input.edges_tsv} {output}
         """
+
+rule dataset:
+    input:
+        "data/datasets/debcred_pr_yearly.jsonline"
+    output:
+        ts="data/datasets/ts_{window_size}_pr.csv",
+        insdata="data/datasets/insdata_{window_size}_pr.csv"
+    shell:
+        "python prepare_dataset.py {input} {wildcards.window_size} {output.ts} {output.insdata}"
