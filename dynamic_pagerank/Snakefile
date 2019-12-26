@@ -1,654 +1,71 @@
-rule overall_stats:
-    input:
-        "data/experiments_finished.checkpoint"
-    output:
-        "data/experiments/overall_comparison.ipynb"
-    shell:
-        "papermill experiments/overall_comparison.ipynb {output} -p data_path data/ -p exec_dir $PWD"
-
 rule all:
     input:
-        "data/experiments/ts/4/perc/explore_predictions.ipynb",
-        "data/experiments/ts/6/perc/explore_predictions.ipynb",
-        "data/experiments/ts/4/lr/explore_predictions.ipynb",
-        "data/experiments/ts/6/lr/explore_predictions.ipynb",
-        "data/experiments/transformedts/4/perc/explore_predictions.ipynb",
-        "data/experiments/transformedts/6/perc/explore_predictions.ipynb",
-        "data/experiments/transformedts/4/percl2reg/explore_predictions.ipynb",
-        "data/experiments/transformedts/6/percl2reg/explore_predictions.ipynb",
-        "data/experiments/transformedts/4/percrandres/explore_predictions.ipynb",
-        "data/experiments/transformedts/6/percrandres/explore_predictions.ipynb",
-        "data/experiments/transformedts/4/percrandresl2reg/explore_predictions.ipynb",
-        "data/experiments/transformedts/6/percrandresl2reg/explore_predictions.ipynb",
-        "data/experiments/transformedts/4/percsmote/explore_predictions.ipynb",
-        "data/experiments/transformedts/6/percsmote/explore_predictions.ipynb",
-        "data/experiments/transformedts/4/percsmotel2reg/explore_predictions.ipynb",
-        "data/experiments/transformedts/6/percsmotel2reg/explore_predictions.ipynb",
-        "data/experiments/transformedts/4/percsmotejitter/explore_predictions.ipynb",
-        "data/experiments/transformedts/6/percsmotejitter/explore_predictions.ipynb",
-        "data/experiments/transformedts/4/percsmotejitterl2reg/explore_predictions.ipynb",
-        "data/experiments/transformedts/6/percsmotejitterl2reg/explore_predictions.ipynb",
-        "data/experiments/transformedts/4/percadasyn/explore_predictions.ipynb",
-        "data/experiments/transformedts/6/percadasyn/explore_predictions.ipynb",
-        "data/experiments/transformedts/4/percadasynl2reg/explore_predictions.ipynb",
-        "data/experiments/transformedts/6/percadasynl2reg/explore_predictions.ipynb",
-        "data/experiments/transformedts/4/percadasynjitter/explore_predictions.ipynb",
-        "data/experiments/transformedts/6/percadasynjitter/explore_predictions.ipynb",
-        "data/experiments/transformedts/4/percadasynjitterl2reg/explore_predictions.ipynb",
-        "data/experiments/transformedts/6/percadasynjitterl2reg/explore_predictions.ipynb",
-        "data/experiments/transformedts/4/lr/explore_predictions.ipynb",
-        "data/experiments/transformedts/6/lr/explore_predictions.ipynb",
-        "data/experiments/basic-insdata/4/perc/explore_predictions.ipynb",
-        "data/experiments/basic-insdata/6/perc/explore_predictions.ipynb",
-        "data/experiments/basic-insdata/4/lr/explore_predictions.ipynb",
-        "data/experiments/basic-insdata/6/lr/explore_predictions.ipynb",
-        "data/experiments/clustering/3/kmeansclusters_explore.ipynb",
-        "data/experiments/clustering/3/cross_val_stats.json",
-        "data/experiments/clustering/4/kmeansclusters_explore.ipynb",
-        "data/experiments/clustering/4/cross_val_stats.json",
-        "data/experiments/clustering/6/kmeansclusters_explore.ipynb",
-        "data/experiments/clustering/6/cross_val_stats.json"
+        "data/datasets/ts_4_pr.csv",
+        "data/datasets/ts_6_pr.csv",
+        "data/datasets/debcred_hits_yearly.jsonline",
+        "data/debcred_pr_segmentation.ipynb"
+
+rule debtor_creditor_network:
     output:
-        "data/experiments_finished.checkpoint"
+        nodes_tsv="data/datasets/debcred_nodes.tsv",
+        edges_tsv="data/datasets/debcred_edges.tsv",
     shell:
-        "echo "" > {output}"
+        """
+        python export_network.py --nodes_tsv {output.nodes_tsv} \
+                                 --edges_tsv {output.edges_tsv} \
+                                 --network_type "debtor->creditor" 
+        """
+
+rule debtor_creditor_network_stats:
+    input:
+        nodes_tsv="data/datasets/debcred_nodes.tsv",
+        edges_tsv="data/datasets/debcred_edges.tsv"
+    output:
+        "data/debcred_stats.ipynb"
+    shell:
+        """
+        papermill debcred_network_stats.ipynb {output} -p nodes_tsv {input.nodes_tsv} -p edges_tsv {input.edges_tsv}
+        """
+
+rule calc_page_rank:
+    input:
+        nodes_tsv="data/datasets/debcred_nodes.tsv",
+        edges_tsv="data/datasets/debcred_edges.tsv"
+    output:
+        "data/datasets/debcred_pr_yearly.jsonline"
+    shell:
+        """
+        java -Xmx10000m -cp $GRAPHSLICES_EXPERIMENTS_JAR org.zviri.graphslicesexperiments.IsirPageRank \
+             {input.nodes_tsv} {input.edges_tsv} {output}
+        """
+
+rule calc_hits:
+    input:
+        nodes_tsv="data/datasets/debcred_nodes.tsv",
+        edges_tsv="data/datasets/debcred_edges.tsv"
+    output:
+        "data/datasets/debcred_hits_yearly.jsonline"
+    shell:
+        """
+        java -Xmx10000m -cp $GRAPHSLICES_EXPERIMENTS_JAR org.zviri.graphslicesexperiments.IsirHITS \
+             {input.nodes_tsv} {input.edges_tsv} {output}
+        """
 
 rule dataset:
     input:
-        "../data/evolving_pagerank_large_graph_yearly_experiment.jsonline"
+        "data/datasets/debcred_pr_yearly.jsonline"
     output:
-        ts="data/datasets/ts_{window_size}.csv",
-        insdata="data/datasets/insdata_{window_size}.csv"
+        ts="data/datasets/ts_{window_size}_pr.csv",
+        insdata="data/datasets/insdata_{window_size}_pr.csv"
     shell:
         "python prepare_dataset.py {input} {wildcards.window_size} {output.ts} {output.insdata}"
 
-rule transform:
+rule debcred_pr_segmentation:
     input:
-        "data/datasets/ts_{window_size}.csv"
+        "data/datasets/debcred_pr_yearly.jsonline"
     output:
-        "data/datasets/transformedts_{window_size}.csv"
-    shell:
-        "python transform_ts.py {input} {output}"
-
-rule basic_insdata_dataset:
-    input:
-        ts="data/datasets/ts_{window_size}.csv",
-        insdata="data/datasets/insdata_{window_size}.csv"
-    output:
-        "data/datasets/basic-insdata_{window_size}.csv"
-    shell:
-        "python basic_insdata_dataset.py {input.ts} {input.insdata} {output}"
-
-
-GS_TRIALS=config["GS_TRIALS"]
-GS_EPOCHS=config["GS_EPOCHS"]
-CV_FOLDS=config["CV_FOLDS"]
-CV_EPOCHS=config["CV_EPOCHS"]
-
-
-######################################
-#          Linear regression         #
-######################################
-
-rule experiment_lr_gs:
-    input:
-        "data/datasets/{dataset}_{window_size}.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/lr/best_params.json"
+        "data/debcred_pr_segmentation.ipynb"
     shell:
         """
-        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/lr
-        python experiments/lr_grid_search.py {input} {GS_TRIALS} {output}
-        """
-
-rule experiment_lr_cv:
-    input:
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        params="data/experiments/{dataset}/{window_size}/lr/best_params.json"
-    output:
-        experiment_desc="data/experiments/{dataset}/{window_size}/lr/experiment_description.markup",
-        model="data/experiments/{dataset}/{window_size}/lr/model.pkl",
-        cv_stats="data/experiments/{dataset}/{window_size}/lr/cross_val_stats.csv"
-    shell:
-        "python experiments/lr_cross_val.py {input.dataset} {input.params} {CV_FOLDS} {output.model} {output.cv_stats} {output.experiment_desc}"
-
-rule gen_explore_predictions_lr_notebooks:
-    input:
-        experiment_desc="data/experiments/{dataset}/{window_size}/lr/experiment_description.markup",
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        insdata="data/datasets/insdata_{window_size}.csv",
-        model="data/experiments/{dataset}/{window_size}/lr/model.pkl",
-        best_params="data/experiments/{dataset}/{window_size}/lr/best_params.json",
-        cv_stats="data/experiments/{dataset}/{window_size}/lr/cross_val_stats.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/lr/explore_predictions.ipynb"
-    shell:
-        """
-        papermill experiments/explore_predictions_sklearn.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p insdata_path {input.insdata} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}
-        """
-
-######################################
-#   Single hidden layer perceptron   #
-######################################
-
-rule experiment_perc_gs:
-    input:
-        "data/datasets/{dataset}_{window_size}.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/perc/best_params.json"
-    shell:
-        """
-        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/perc
-        python experiments/perc_grid_search.py {input} {GS_TRIALS} {GS_EPOCHS} {output}
-        """
-
-rule experiment_perc_cv:
-    input:
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        params="data/experiments/{dataset}/{window_size}/perc/best_params.json"
-    output:
-        model="data/experiments/{dataset}/{window_size}/perc/model.h5",
-        cv_stats="data/experiments/{dataset}/{window_size}/perc/cross_val_stats.csv",
-        experiment_desc="data/experiments/{dataset}/{window_size}/perc/experiment_description.markup"
-    shell:
-        "python experiments/perc_cross_val.py {input.dataset} {input.params} {CV_EPOCHS} {CV_FOLDS} {output.model} {output.cv_stats} {output.experiment_desc}"
-
-rule gen_explore_predictions_perc_notebooks:
-    input:
-        experiment_desc="data/experiments/{dataset}/{window_size}/perc/experiment_description.markup",
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        insdata="data/datasets/insdata_{window_size}.csv",
-        model="data/experiments/{dataset}/{window_size}/perc/model.h5",
-        best_params="data/experiments/{dataset}/{window_size}/perc/best_params.json",
-        cv_stats="data/experiments/{dataset}/{window_size}/perc/cross_val_stats.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/perc/explore_predictions.ipynb"
-    shell:
-        """
-        papermill experiments/explore_predictions_perc.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p insdata_path {input.insdata} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}
-        """
-
-#################################################################
-#   Single hidden layer perceptron with randomized resampling   #
-#################################################################
-RANDRES_STEPSIZE = 0.1
-rule experiment_percrandres_gs:
-    input:
-        "data/datasets/{dataset}_{window_size}.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percrandres/best_params.json"
-    shell:
-        """
-        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/percrandres
-        python experiments/percrandres_grid_search.py {input} {GS_TRIALS} {GS_EPOCHS} {RANDRES_STEPSIZE} {output}
-        """
-
-rule experiment_percrandres_cv:
-    input:
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        params="data/experiments/{dataset}/{window_size}/percrandres/best_params.json"
-    output:
-        model="data/experiments/{dataset}/{window_size}/percrandres/model.h5",
-        cv_stats="data/experiments/{dataset}/{window_size}/percrandres/cross_val_stats.csv",
-        experiment_desc="data/experiments/{dataset}/{window_size}/percrandres/experiment_description.markup"
-    shell:
-        "python experiments/percrandres_cross_val.py {input.dataset} {input.params} {CV_EPOCHS} {CV_FOLDS} {RANDRES_STEPSIZE} {output.model} {output.cv_stats} {output.experiment_desc}"
-
-rule gen_explore_predictions_percrandres_notebooks:
-    input:
-        experiment_desc="data/experiments/{dataset}/{window_size}/percrandres/experiment_description.markup",
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        insdata="data/datasets/insdata_{window_size}.csv",
-        model="data/experiments/{dataset}/{window_size}/percrandres/model.h5",
-        best_params="data/experiments/{dataset}/{window_size}/percrandres/best_params.json",
-        cv_stats="data/experiments/{dataset}/{window_size}/percrandres/cross_val_stats.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percrandres/explore_predictions.ipynb"
-    shell:
-        """
-        papermill experiments/explore_predictions_perc.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p insdata_path {input.insdata} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}
-        """
-
-#################################################################
-#   Single hidden layer perceptron with SMOTE resampling        #
-#################################################################
-SMOTE_STEPSIZE = 0.25
-SMOTE_K_NEIGHBORS = 3
-rule experiment_percsmote_gs:
-    input:
-        "data/datasets/{dataset}_{window_size}.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percsmote/best_params.json"
-    shell:
-        """
-        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/percsmote
-        python experiments/percsmote_grid_search.py {input} {GS_TRIALS} {GS_EPOCHS} {SMOTE_STEPSIZE} {SMOTE_K_NEIGHBORS} {output}
-        """
-
-rule experiment_percsmote_cv:
-    input:
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        params="data/experiments/{dataset}/{window_size}/percsmote/best_params.json"
-    output:
-        model="data/experiments/{dataset}/{window_size}/percsmote/model.h5",
-        cv_stats="data/experiments/{dataset}/{window_size}/percsmote/cross_val_stats.csv",
-        experiment_desc="data/experiments/{dataset}/{window_size}/percsmote/experiment_description.markup"
-    shell:
-        "python experiments/percsmote_cross_val.py {input.dataset} {input.params} {CV_EPOCHS} {CV_FOLDS} {SMOTE_STEPSIZE} {SMOTE_K_NEIGHBORS} {output.model} {output.cv_stats} {output.experiment_desc}"
-
-rule gen_explore_predictions_percsmote_notebooks:
-    input:
-        experiment_desc="data/experiments/{dataset}/{window_size}/percsmote/experiment_description.markup",
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        insdata="data/datasets/insdata_{window_size}.csv",
-        model="data/experiments/{dataset}/{window_size}/percsmote/model.h5",
-        best_params="data/experiments/{dataset}/{window_size}/percsmote/best_params.json",
-        cv_stats="data/experiments/{dataset}/{window_size}/percsmote/cross_val_stats.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percsmote/explore_predictions.ipynb"
-    shell:
-        """
-        papermill experiments/explore_predictions_perc.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p insdata_path {input.insdata} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}
-        """
-
-##################################################################
-#   Single hidden layer perceptron with SMOTE with jitter        #
-##################################################################
-rule experiment_percsmotejitter_gs:
-    input:
-        "data/datasets/{dataset}_{window_size}.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percsmotejitter/best_params.json"
-    shell:
-        """
-        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/percsmotejitter
-        python experiments/percsmote_grid_search.py {input} {GS_TRIALS} {GS_EPOCHS} {SMOTE_STEPSIZE} {SMOTE_K_NEIGHBORS} --jitter {output}
-        """
-
-rule experiment_percsmotejitter_cv:
-    input:
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        params="data/experiments/{dataset}/{window_size}/percsmotejitter/best_params.json"
-    output:
-        model="data/experiments/{dataset}/{window_size}/percsmotejitter/model.h5",
-        cv_stats="data/experiments/{dataset}/{window_size}/percsmotejitter/cross_val_stats.csv",
-        experiment_desc="data/experiments/{dataset}/{window_size}/percsmotejitter/experiment_description.markup"
-    shell:
-        "python experiments/percsmote_cross_val.py {input.dataset} {input.params} {CV_EPOCHS} {CV_FOLDS} {SMOTE_STEPSIZE} {SMOTE_K_NEIGHBORS} --jitter {output.model} {output.cv_stats} {output.experiment_desc}"
-
-rule gen_explore_predictions_percsmotejitter_notebooks:
-    input:
-        experiment_desc="data/experiments/{dataset}/{window_size}/percsmotejitter/experiment_description.markup",
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        insdata="data/datasets/insdata_{window_size}.csv",
-        model="data/experiments/{dataset}/{window_size}/percsmotejitter/model.h5",
-        best_params="data/experiments/{dataset}/{window_size}/percsmotejitter/best_params.json",
-        cv_stats="data/experiments/{dataset}/{window_size}/percsmotejitter/cross_val_stats.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percsmotejitter/explore_predictions.ipynb"
-    shell:
-        """
-        papermill experiments/explore_predictions_perc.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p insdata_path {input.insdata} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}
-        """
-
-#################################################################
-#   Single hidden layer perceptron with ADASYN resampling       #
-#################################################################
-ADASYN_STEPSIZE = 0.25
-ADASYN_K_NEIGHBORS = 3
-rule experiment_percadasyn_gs:
-    input:
-        "data/datasets/{dataset}_{window_size}.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percadasyn/best_params.json"
-    shell:
-        """
-        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/percadasyn
-        python experiments/percadasyn_grid_search.py {input} {GS_TRIALS} {GS_EPOCHS} {ADASYN_STEPSIZE} {ADASYN_K_NEIGHBORS} {output}
-        """
-
-rule experiment_percadasyn_cv:
-    input:
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        params="data/experiments/{dataset}/{window_size}/percadasyn/best_params.json"
-    output:
-        model="data/experiments/{dataset}/{window_size}/percadasyn/model.h5",
-        cv_stats="data/experiments/{dataset}/{window_size}/percadasyn/cross_val_stats.csv",
-        experiment_desc="data/experiments/{dataset}/{window_size}/percadasyn/experiment_description.markup"
-    shell:
-        "python experiments/percadasyn_cross_val.py {input.dataset} {input.params} {CV_EPOCHS} {CV_FOLDS} {ADASYN_STEPSIZE} {ADASYN_K_NEIGHBORS} {output.model} {output.cv_stats} {output.experiment_desc}"
-
-rule gen_explore_predictions_percadasyn_notebooks:
-    input:
-        experiment_desc="data/experiments/{dataset}/{window_size}/percadasyn/experiment_description.markup",
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        insdata="data/datasets/insdata_{window_size}.csv",
-        model="data/experiments/{dataset}/{window_size}/percadasyn/model.h5",
-        best_params="data/experiments/{dataset}/{window_size}/percadasyn/best_params.json",
-        cv_stats="data/experiments/{dataset}/{window_size}/percadasyn/cross_val_stats.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percadasyn/explore_predictions.ipynb"
-    shell:
-        """
-        papermill experiments/explore_predictions_perc.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p insdata_path {input.insdata} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}
-        """
-
-##################################################################
-#   Single hidden layer perceptron with ADASYN with jitter       #
-##################################################################
-rule experiment_percadasynjitter_gs:
-    input:
-        "data/datasets/{dataset}_{window_size}.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percadasynjitter/best_params.json"
-    shell:
-        """
-        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/percadasynjitter
-        python experiments/percadasyn_grid_search.py {input} {GS_TRIALS} {GS_EPOCHS} {ADASYN_STEPSIZE} {ADASYN_K_NEIGHBORS} --jitter {output}
-        """
-
-rule experiment_percadasynjitter_cv:
-    input:
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        params="data/experiments/{dataset}/{window_size}/percadasynjitter/best_params.json"
-    output:
-        model="data/experiments/{dataset}/{window_size}/percadasynjitter/model.h5",
-        cv_stats="data/experiments/{dataset}/{window_size}/percadasynjitter/cross_val_stats.csv",
-        experiment_desc="data/experiments/{dataset}/{window_size}/percadasynjitter/experiment_description.markup"
-    shell:
-        "python experiments/percadasyn_cross_val.py {input.dataset} {input.params} {CV_EPOCHS} {CV_FOLDS} {ADASYN_STEPSIZE} {ADASYN_K_NEIGHBORS} --jitter {output.model} {output.cv_stats} {output.experiment_desc}"
-
-rule gen_explore_predictions_percadasynjitter_notebooks:
-    input:
-        experiment_desc="data/experiments/{dataset}/{window_size}/percadasynjitter/experiment_description.markup",
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        insdata="data/datasets/insdata_{window_size}.csv",
-        model="data/experiments/{dataset}/{window_size}/percadasynjitter/model.h5",
-        best_params="data/experiments/{dataset}/{window_size}/percadasynjitter/best_params.json",
-        cv_stats="data/experiments/{dataset}/{window_size}/percadasynjitter/cross_val_stats.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percadasynjitter/explore_predictions.ipynb"
-    shell:
-        """
-        papermill experiments/explore_predictions_perc.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p insdata_path {input.insdata} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}
-        """
-
-######################################
-#            Clustering              #
-######################################
-
-rule run_kmeans_clustering:
-    input:
-        "data/datasets/ts_{window_size}.csv"
-    output:
-        "data/datasets/kmeansclusters_{window_size}.csv"
-    shell:
-        "python experiments/clustering.py {input} {output}"
-
-rule clustering_classification_experiment:
-    input:
-        ts="data/datasets/ts_{window_size}.csv",
-        clusters="data/datasets/kmeansclusters_{window_size}.csv"
-    output:
-        model="data/experiments/clustering/{window_size}/model.pkl",
-        cv_stats="data/experiments/clustering/{window_size}/cross_val_stats.json"
-    shell:
-        """
-        python experiments/classification.py {input.ts} {input.clusters} {CV_FOLDS} {output.model} {output.cv_stats}
-        """
-
-rule gen_explore_clustering_and_classification_notebooks:
-    input:
-        ts="data/datasets/ts_{window_size}.csv",
-        insdata="data/datasets/insdata_{window_size}.csv",
-        clusters="data/datasets/kmeansclusters_{window_size}.csv",
-        cv_stats="data/experiments/clustering/{window_size}/cross_val_stats.json",
-        model="data/experiments/clustering/{window_size}/model.pkl"
-    output:
-        "data/experiments/clustering/{window_size}/kmeansclusters_explore.ipynb"
-    shell:
-        """
-        mkdir -p data/experiments/clustering/{wildcards.window_size}
-        papermill experiments/explore_clusters.ipynb {output} -p ts_path {input.ts} -p insdata_path {input.insdata} -p clusters_path {input.clusters} -p cv_stats_path {input.cv_stats} -p model_path {input.model}
-        """
-
-#############################################################
-#   Single hidden layer perceptron with L2 regularization   #
-#############################################################
-
-rule experiment_percl2reg_gs:
-    input:
-        "data/datasets/{dataset}_{window_size}.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percl2reg/best_params.json"
-    shell:
-        """
-        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/perc
-        python experiments/perc_grid_search.py --with_l2_regularization {input} {GS_TRIALS} {GS_EPOCHS} {output}
-        """
-
-rule experiment_percl2reg_cv:
-    input:
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        params="data/experiments/{dataset}/{window_size}/percl2reg/best_params.json"
-    output:
-        model="data/experiments/{dataset}/{window_size}/percl2reg/model.h5",
-        cv_stats="data/experiments/{dataset}/{window_size}/percl2reg/cross_val_stats.csv",
-        experiment_desc="data/experiments/{dataset}/{window_size}/percl2reg/experiment_description.markup"
-    shell:
-        "python experiments/perc_cross_val.py {input.dataset} {input.params} {CV_EPOCHS} {CV_FOLDS} {output.model} {output.cv_stats} {output.experiment_desc}"
-
-rule gen_explore_predictions_percl2reg_notebooks:
-    input:
-        experiment_desc="data/experiments/{dataset}/{window_size}/percl2reg/experiment_description.markup",
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        insdata="data/datasets/insdata_{window_size}.csv",
-        model="data/experiments/{dataset}/{window_size}/percl2reg/model.h5",
-        best_params="data/experiments/{dataset}/{window_size}/percl2reg/best_params.json",
-        cv_stats="data/experiments/{dataset}/{window_size}/percl2reg/cross_val_stats.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percl2reg/explore_predictions.ipynb"
-    shell:
-        """
-        papermill experiments/explore_predictions_perc.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p insdata_path {input.insdata} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}
-        """
-
-#######################################################################################
-#   Single hidden layer perceptron with randomized resampling with L2 regularization  #
-#######################################################################################
-rule experiment_percrandresl2reg_gs:
-    input:
-        "data/datasets/{dataset}_{window_size}.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percrandresl2reg/best_params.json"
-    shell:
-        """
-        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/percrandresl2reg
-        python experiments/percrandres_grid_search.py {input} {GS_TRIALS} {GS_EPOCHS} {RANDRES_STEPSIZE} {output} --with_l2_regularization
-        """
-
-rule experiment_percrandresl2reg_cv:
-    input:
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        params="data/experiments/{dataset}/{window_size}/percrandresl2reg/best_params.json"
-    output:
-        model="data/experiments/{dataset}/{window_size}/percrandresl2reg/model.h5",
-        cv_stats="data/experiments/{dataset}/{window_size}/percrandresl2reg/cross_val_stats.csv",
-        experiment_desc="data/experiments/{dataset}/{window_size}/percrandresl2reg/experiment_description.markup"
-    shell:
-        "python experiments/percrandres_cross_val.py {input.dataset} {input.params} {CV_EPOCHS} {CV_FOLDS} {RANDRES_STEPSIZE} {output.model} {output.cv_stats} {output.experiment_desc}"
-
-rule gen_explore_predictions_percrandresl2reg_notebooks:
-    input:
-        experiment_desc="data/experiments/{dataset}/{window_size}/percrandresl2reg/experiment_description.markup",
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        insdata="data/datasets/insdata_{window_size}.csv",
-        model="data/experiments/{dataset}/{window_size}/percrandresl2reg/model.h5",
-        best_params="data/experiments/{dataset}/{window_size}/percrandresl2reg/best_params.json",
-        cv_stats="data/experiments/{dataset}/{window_size}/percrandresl2reg/cross_val_stats.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percrandresl2reg/explore_predictions.ipynb"
-    shell:
-        """
-        papermill experiments/explore_predictions_perc.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p insdata_path {input.insdata} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}
-        """
-
-##################################################################################
-#   Single hidden layer perceptron with SMOTE resampling with L2 regularization  #
-##################################################################################
-rule experiment_percsmotel2reg_gs:
-    input:
-        "data/datasets/{dataset}_{window_size}.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percsmotel2reg/best_params.json"
-    shell:
-        """
-        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/percsmote
-        python experiments/percsmote_grid_search.py {input} {GS_TRIALS} {GS_EPOCHS} {SMOTE_STEPSIZE} {SMOTE_K_NEIGHBORS} {output} --with_l2_regularization
-        """
-
-rule experiment_percsmotel2reg_cv:
-    input:
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        params="data/experiments/{dataset}/{window_size}/percsmotel2reg/best_params.json"
-    output:
-        model="data/experiments/{dataset}/{window_size}/percsmotel2reg/model.h5",
-        cv_stats="data/experiments/{dataset}/{window_size}/percsmotel2reg/cross_val_stats.csv",
-        experiment_desc="data/experiments/{dataset}/{window_size}/percsmotel2reg/experiment_description.markup"
-    shell:
-        "python experiments/percsmote_cross_val.py {input.dataset} {input.params} {CV_EPOCHS} {CV_FOLDS} {SMOTE_STEPSIZE} {SMOTE_K_NEIGHBORS} {output.model} {output.cv_stats} {output.experiment_desc}"
-
-rule gen_explore_predictions_percsmotel2reg_notebooks:
-    input:
-        experiment_desc="data/experiments/{dataset}/{window_size}/percsmotel2reg/experiment_description.markup",
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        insdata="data/datasets/insdata_{window_size}.csv",
-        model="data/experiments/{dataset}/{window_size}/percsmotel2reg/model.h5",
-        best_params="data/experiments/{dataset}/{window_size}/percsmotel2reg/best_params.json",
-        cv_stats="data/experiments/{dataset}/{window_size}/percsmotel2reg/cross_val_stats.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percsmotel2reg/explore_predictions.ipynb"
-    shell:
-        """
-        papermill experiments/explore_predictions_perc.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p insdata_path {input.insdata} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}
-        """
-
-###################################################################################
-#   Single hidden layer perceptron with SMOTE with jitter with L2 regularization  #
-###################################################################################
-rule experiment_percsmotejitterl2reg_gs:
-    input:
-        "data/datasets/{dataset}_{window_size}.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percsmotejitterl2reg/best_params.json"
-    shell:
-        """
-        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/percsmotejitterl2reg
-        python experiments/percsmote_grid_search.py {input} {GS_TRIALS} {GS_EPOCHS} {SMOTE_STEPSIZE} {SMOTE_K_NEIGHBORS} --jitter {output} --with_l2_regularization
-        """
-
-rule experiment_percsmotejitterl2reg_cv:
-    input:
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        params="data/experiments/{dataset}/{window_size}/percsmotejitterl2reg/best_params.json"
-    output:
-        model="data/experiments/{dataset}/{window_size}/percsmotejitterl2reg/model.h5",
-        cv_stats="data/experiments/{dataset}/{window_size}/percsmotejitterl2reg/cross_val_stats.csv",
-        experiment_desc="data/experiments/{dataset}/{window_size}/percsmotejitterl2reg/experiment_description.markup"
-    shell:
-        "python experiments/percsmote_cross_val.py {input.dataset} {input.params} {CV_EPOCHS} {CV_FOLDS} {SMOTE_STEPSIZE} {SMOTE_K_NEIGHBORS} --jitter {output.model} {output.cv_stats} {output.experiment_desc}"
-
-rule gen_explore_predictions_percsmotejitterl2reg_notebooks:
-    input:
-        experiment_desc="data/experiments/{dataset}/{window_size}/percsmotejitterl2reg/experiment_description.markup",
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        insdata="data/datasets/insdata_{window_size}.csv",
-        model="data/experiments/{dataset}/{window_size}/percsmotejitterl2reg/model.h5",
-        best_params="data/experiments/{dataset}/{window_size}/percsmotejitterl2reg/best_params.json",
-        cv_stats="data/experiments/{dataset}/{window_size}/percsmotejitterl2reg/cross_val_stats.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percsmotejitterl2reg/explore_predictions.ipynb"
-    shell:
-        """
-        papermill experiments/explore_predictions_perc.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p insdata_path {input.insdata} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}
-        """
-
-####################################################################################
-#   Single hidden layer perceptron with ADASYN resampling with L2 regularization   #
-####################################################################################
-rule experiment_percadasynl2reg_gs:
-    input:
-        "data/datasets/{dataset}_{window_size}.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percadasynl2reg/best_params.json"
-    shell:
-        """
-        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/percadasynl2reg
-        python experiments/percadasyn_grid_search.py {input} {GS_TRIALS} {GS_EPOCHS} {ADASYN_STEPSIZE} {ADASYN_K_NEIGHBORS} {output} --with_l2_regularization
-        """
-
-rule experiment_percadasynl2reg_cv:
-    input:
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        params="data/experiments/{dataset}/{window_size}/percadasynl2reg/best_params.json"
-    output:
-        model="data/experiments/{dataset}/{window_size}/percadasynl2reg/model.h5",
-        cv_stats="data/experiments/{dataset}/{window_size}/percadasynl2reg/cross_val_stats.csv",
-        experiment_desc="data/experiments/{dataset}/{window_size}/percadasynl2reg/experiment_description.markup"
-    shell:
-        "python experiments/percadasyn_cross_val.py {input.dataset} {input.params} {CV_EPOCHS} {CV_FOLDS} {ADASYN_STEPSIZE} {ADASYN_K_NEIGHBORS} {output.model} {output.cv_stats} {output.experiment_desc}"
-
-rule gen_explore_predictions_percadasynl2reg_notebooks:
-    input:
-        experiment_desc="data/experiments/{dataset}/{window_size}/percadasynl2reg/experiment_description.markup",
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        insdata="data/datasets/insdata_{window_size}.csv",
-        model="data/experiments/{dataset}/{window_size}/percadasynl2reg/model.h5",
-        best_params="data/experiments/{dataset}/{window_size}/percadasynl2reg/best_params.json",
-        cv_stats="data/experiments/{dataset}/{window_size}/percadasynl2reg/cross_val_stats.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percadasynl2reg/explore_predictions.ipynb"
-    shell:
-        """
-        papermill experiments/explore_predictions_perc.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p insdata_path {input.insdata} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}
-        """
-
-#####################################################################################
-#   Single hidden layer perceptron with ADASYN with jitter with L2 regularization   #
-#####################################################################################
-rule experiment_percadasynjitterl2reg_gs:
-    input:
-        "data/datasets/{dataset}_{window_size}.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percadasynjitterl2reg/best_params.json"
-    shell:
-        """
-        mkdir -p data/experiments/{wildcards.dataset}/{wildcards.window_size}/percadasynjitterl2reg
-        python experiments/percadasyn_grid_search.py {input} {GS_TRIALS} {GS_EPOCHS} {ADASYN_STEPSIZE} {ADASYN_K_NEIGHBORS} --jitter {output} --with_l2_regularization
-        """
-
-rule experiment_percadasynjitterl2reg_cv:
-    input:
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        params="data/experiments/{dataset}/{window_size}/percadasynjitterl2reg/best_params.json"
-    output:
-        model="data/experiments/{dataset}/{window_size}/percadasynjitterl2reg/model.h5",
-        cv_stats="data/experiments/{dataset}/{window_size}/percadasynjitterl2reg/cross_val_stats.csv",
-        experiment_desc="data/experiments/{dataset}/{window_size}/percadasynjitterl2reg/experiment_description.markup"
-    shell:
-        "python experiments/percadasyn_cross_val.py {input.dataset} {input.params} {CV_EPOCHS} {CV_FOLDS} {ADASYN_STEPSIZE} {ADASYN_K_NEIGHBORS} --jitter {output.model} {output.cv_stats} {output.experiment_desc}"
-
-rule gen_explore_predictions_percadasynjitterl2reg_notebooks:
-    input:
-        experiment_desc="data/experiments/{dataset}/{window_size}/percadasynjitterl2reg/experiment_description.markup",
-        dataset="data/datasets/{dataset}_{window_size}.csv",
-        insdata="data/datasets/insdata_{window_size}.csv",
-        model="data/experiments/{dataset}/{window_size}/percadasynjitterl2reg/model.h5",
-        best_params="data/experiments/{dataset}/{window_size}/percadasynjitterl2reg/best_params.json",
-        cv_stats="data/experiments/{dataset}/{window_size}/percadasynjitterl2reg/cross_val_stats.csv"
-    output:
-        "data/experiments/{dataset}/{window_size}/percadasynjitterl2reg/explore_predictions.ipynb"
-    shell:
-        """
-        papermill experiments/explore_predictions_perc.ipynb {output} -p model_path {input.model} -p dataset_path {input.dataset} -p insdata_path {input.insdata} -p best_params_path {input.best_params} -p cross_val_stats_path {input.cv_stats} -p experiment_description_path {input.experiment_desc}
+        papermill pr_segmentation.ipynb {output} -p graph_path {input}
         """
