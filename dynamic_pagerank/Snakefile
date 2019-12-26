@@ -3,7 +3,9 @@ rule all:
         "data/datasets/ts_4_pr.csv",
         "data/datasets/ts_6_pr.csv",
         "data/datasets/debcred_hits_yearly.jsonline",
-        "data/debcred_pr_segmentation.ipynb"
+        "data/debcred_pr_segmentation.ipynb",
+        "data/debadmcred_stats.ipynb",
+        "data/datasets/debadmcred_pr_yearly.jsonline"
 
 rule debtor_creditor_network:
     output:
@@ -16,6 +18,17 @@ rule debtor_creditor_network:
                                  --network_type "debtor->creditor" 
         """
 
+rule debtor_administrator_creditor_network:
+    output:
+        nodes_tsv="data/datasets/debadmcred_nodes.tsv",
+        edges_tsv="data/datasets/debadmcred_edges.tsv",
+    shell:
+        """
+        python export_network.py --nodes_tsv {output.nodes_tsv} \
+                                 --edges_tsv {output.edges_tsv} \
+                                 --network_type "debtor->administrator->creditor" 
+        """
+
 rule debtor_creditor_network_stats:
     input:
         nodes_tsv="data/datasets/debcred_nodes.tsv",
@@ -24,7 +37,18 @@ rule debtor_creditor_network_stats:
         "data/debcred_stats.ipynb"
     shell:
         """
-        papermill debcred_network_stats.ipynb {output} -p nodes_tsv {input.nodes_tsv} -p edges_tsv {input.edges_tsv}
+        papermill network_stats.ipynb {output} -p nodes_tsv {input.nodes_tsv} -p edges_tsv {input.edges_tsv}
+        """
+
+rule debtor_administrator_creditor_network_stats:
+    input:
+        nodes_tsv="data/datasets/debadmcred_nodes.tsv",
+        edges_tsv="data/datasets/debadmcred_edges.tsv"
+    output:
+        "data/debadmcred_stats.ipynb"
+    shell:
+        """
+        papermill network_stats.ipynb {output} -p nodes_tsv {input.nodes_tsv} -p edges_tsv {input.edges_tsv}
         """
 
 rule calc_page_rank:
@@ -36,6 +60,18 @@ rule calc_page_rank:
     shell:
         """
         java -Xmx10000m -cp $GRAPHSLICES_EXPERIMENTS_JAR org.zviri.graphslicesexperiments.IsirPageRank \
+             {input.nodes_tsv} {input.edges_tsv} {output}
+        """
+
+rule debadmcred_calc_page_rank:
+    input:
+        nodes_tsv="data/datasets/debadmcred_nodes.tsv",
+        edges_tsv="data/datasets/debadmcred_edges.tsv"
+    output:
+        "data/datasets/debadmcred_pr_yearly.jsonline"
+    shell:
+        """
+        java -Xmx15000m -cp $GRAPHSLICES_EXPERIMENTS_JAR org.zviri.graphslicesexperiments.IsirPageRank \
              {input.nodes_tsv} {input.edges_tsv} {output}
         """
 

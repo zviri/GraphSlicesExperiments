@@ -9,7 +9,7 @@ import re
 log = get_logger("export_network")
 
 TOP_N_CREDITORS = 100
-MAX_DATE = datetime.date(2019, 1, 1)
+MAX_DATE = datetime.date(2019, 1, 1)        
 
 def export_network(network_type, nodes_tsv, edges_tsv):
     creditors_df = extract_creditors()
@@ -21,8 +21,9 @@ def export_network(network_type, nodes_tsv, edges_tsv):
     nodes_df = pd.DataFrame([], columns=["id", "name", "node_type"])
     nodes_df = nodes_df.append(creditors_df).append(debtors_df)
     edges_df = pd.DataFrame([], columns=["source_id", "target_id", "edge_type", "start_date", "end_date"])
+
+    log.info("Extracting network type = {}".format(network_type))
     if network_type == "debtor->creditor":
-        log.info("Extracting network type = {}".format(network_type))
         log.info("Extracting debtor->creditor edges...")
         insolvency_creditor_edges_df = extract_insolvency_creditor_edges()
         insolvency_creditor_edges_df = insolvency_creditor_edges_df.merge(
@@ -39,11 +40,87 @@ def export_network(network_type, nodes_tsv, edges_tsv):
             ["source_id", "target_id", "edge_type", "start_date", "end_date"]]
         edges_df = edges_df.append(debtor_creditor_edges_df)
         log.info("Extracted {} debtor->creditor edges".format(len(debtor_creditor_edges_df)))
+
+    if network_type == "debtor->administrator->creditor":
+        administrators_df = extract_administrators(creditor_ids)
+        nodes_df = nodes_df.append(administrators_df)
+
+        insolvency_administrator_edges_df = extract_insolvency_administrator_edges()
+        
+        debtor_administrator_edges_df = to_debtor_administrator_edges(insolvency_administrator_edges_df, insolvency_end_dates_df, insolvencies_df)
+        administrator_creditor_edges_df = extract_administrator_creditor_edges(insolvency_end_dates_df, creditor_ids)
+        edges_df = edges_df\
+            .append(debtor_administrator_edges_df)\
+            .append(administrator_creditor_edges_df)
     
+    nodes_df = nodes_df[["id", "name", "node_type", "person_type", "region_id"]]
     nodes_df.to_csv(nodes_tsv, encoding="utf-8", sep="\t", index=False)
+
+    edges_df = edges_df[["source_id", "target_id", "edge_type", "start_date", "end_date"]]
     edges_df.to_csv(edges_tsv, encoding="utf-8", sep="\t", index=False)
     log.info("Finished!")
-        
+
+def extract_administrator_creditor_edges(insolvency_end_dates_df, creditor_ids):
+    log.info("Converting to administrator -> creditor edges...")
+    administrator_creditor_edges_df = sql2df("""
+        SELECT ft.insolvency_id, administrator_id, creditor_string_id, start_date::DATE, end_date::DATE
+        FROM insolvencies_administrators_tab iat
+             JOIN file_tab ft ON ft.insolvency_id = iat.insolvency_id
+        WHERE ft.creditor_string_id IS NOT NULL 
+              AND ft.creditor_string_id = ANY(%(creditor_ids)s)
+    """, creditor_ids=creditor_ids).drop_duplicates()
+    
+    administrator_creditor_edges_df["administrator_id"] = administrator_creditor_edges_df["administrator_id"].apply(
+        lambda id_: "adm_%d" % id_
+    )
+    administrator_creditor_edges_df = normalize_df_by_ins_id(administrator_creditor_edges_df)
+    administrator_creditor_edges_df = administrator_creditor_edges_df.drop_duplicates()
+    
+    administrator_creditor_edges_df = administrator_creditor_edges_df\
+        .merge(insolvency_end_dates_df, on="insolvency_id", how="left")
+    administrator_creditor_edges_df["end_date"] = administrator_creditor_edges_df\
+        .end_date_x.fillna(administrator_creditor_edges_df.end_date_y)
+    
+    administrator_creditor_edges_df = administrator_creditor_edges_df\
+        .rename(columns={"administrator_id": "source_id", "creditor_string_id": "target_id"})\
+        [["source_id", "target_id", "start_date", "end_date"]]
+    administrator_creditor_edges_df["edge_type"] = "administrator_creditor"
+    log.info("Extracted {} edge records".format(len(administrator_creditor_edges_df)))
+    
+    return administrator_creditor_edges_df
+    
+def to_debtor_administrator_edges(insolvency_administrator_edges_df, insolvency_end_dates_df, insolvencies_df):
+    log.info("Converting to debtor -> administrator edges...")
+    debtor_administrator_edges_df = insolvency_administrator_edges_df\
+            .merge(insolvencies_df[["insolvency_id", "debtor_id"]].drop_duplicates(),
+                   on="insolvency_id")
+    debtor_administrator_edges_df = debtor_administrator_edges_df\
+        .merge(insolvency_end_dates_df, on="insolvency_id", how="left")
+
+    debtor_administrator_edges_df["end_date"] = debtor_administrator_edges_df\
+        .end_date_x.fillna(debtor_administrator_edges_df.end_date_y)
+
+    debtor_administrator_edges_df = debtor_administrator_edges_df\
+        .rename(columns={"debtor_id": "source_id", "administrator_id": "target_id"})\
+        [["source_id", "target_id", "start_date", "end_date"]]
+    debtor_administrator_edges_df["edge_type"] = "debtor_administrator"
+    log.info("Extracted {} edge records".format(len(debtor_administrator_edges_df)))
+    return debtor_administrator_edges_df
+
+def extract_insolvency_administrator_edges():
+    log.info("Extracting insolvency -> administrator edges...")
+    insolvency_administrator_edges_df = sql2df(
+        "SELECT it.id AS insolvency_id, iat.administrator_id, start_date::DATE, end_date::DATE \
+         FROM insolvencies_administrators_tab iat JOIN insolvency_tab it ON iat.insolvency_id=it.id"
+    ).drop_duplicates()
+
+    insolvency_administrator_edges_df["administrator_id"] = insolvency_administrator_edges_df["administrator_id"].apply(
+        lambda id_: "adm_%d" % id_
+    )
+    insolvency_administrator_edges_df = normalize_df_by_ins_id(insolvency_administrator_edges_df)
+    insolvency_administrator_edges_df = insolvency_administrator_edges_df.drop_duplicates()
+    log.info("Extracted {} edge records".format(len(insolvency_administrator_edges_df)))
+    return insolvency_administrator_edges_df
 
 def insolvencies2debtors(insolvencies_df):
     log.info("Extracting debtors...")
@@ -128,10 +205,10 @@ def extract_administrators(creditor_ids):
         GROUP BY at.id, at.name""", creditor_ids=creditor_ids
     ).drop_duplicates()
     administrators_df["id"] = administrators_df["id"].apply(lambda id_: "adm_%d" % id_)
-    administrators_df["type"] = "administrator"
+    administrators_df["node_type"] = "administrator"
     log.info("Extracted {} administrator records".format(len(administrators_df)))
     
-    return administrators_df
+    return administrators_df[["id", "name", "node_type"]]
 
 def extract_creditors():
     log.info("Extracting creditors...")
