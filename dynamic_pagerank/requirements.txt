@@ -16,7 +16,7 @@ jupyterlab==0.34.10
 jupyterlab-launcher==0.13.1
 ipython==6.5.0
 ipython-genutils==0.2.0
-tensorflow==1.10.1
+tensorflow==2.7.2
 ipympl==0.2.1
 Keras==2.2.4
 hyperopt==0.1.2
